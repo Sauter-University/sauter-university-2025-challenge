@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "src/infra/**" # Any file in the infra folder"
+      - "terraform/**" # Any file in the infra folder"
       - '**.tf'       # Any .tf file in any folder
       - '**.tfvars'   # Any .tfvars file in any folder
       - ".github/workflows/application-cicd.yml" # To trigger a new deployment if the CICD workflow file changes
