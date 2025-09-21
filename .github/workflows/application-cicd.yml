@@ -19,8 +19,8 @@ jobs:
       id-token: 'write'
 
     env:
-      PROJECT_ID: ${{ secrets.PROJECT_ID }}
-      SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      SERVICE_NAME: ${{ secrets.GCP_SERVICE_NAME }}
       REGION: southamerica-east1
       REPOSITORY: docker-artifact-registry # The name of the Artifact Registry repository
       IMAGE: main
