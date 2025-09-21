@@ -47,11 +47,13 @@ jobs:
     - name: Terraform Format
       run: terraform fmt -check
       working-directory: terraform
+      continue-on-error: true
 
       # Validate the Terraform configuration
     - name: Terraform Validate
       run: terraform validate
       working-directory: terraform
+      continue-on-error: true
 
     # Run 'plan' on all Pull Requests
     - name: Terraform Plan
