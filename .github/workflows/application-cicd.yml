@@ -1,0 +1,65 @@
+name: Deploy Application to Cloud Run
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.tf'       # Ignore any .tf file
+      - '**.tfvars'   # Ignore any .tfvars file
+      - '.github/workflows/infrastructure-iac.yml'
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, and Deploy
+    runs-on: ubuntu-latest
+
+    # Add the necessary permissions for Workload Identity Federation
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+      REGION: asia-south1
+      REPOSITORY: docker-artifact-registry # The name of the Artifact Registry repository
+      IMAGE: main
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Best practice: Secure authentication without keys
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }} # e.g., terraform-sa@...iam.gserviceaccount.com
+
+      # 'setup-gcloud' already uses the authentication from the previous step
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build Docker Image
+        run: |
+          docker build -t "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}" .
+
+      - name: Push Docker Image
+        run: |
+          docker push "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: "${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:${{ github.sha }}"
+
+      # Optional: Show the URL of the deployed service
+      - name: Show Output
+        run: echo "Successfully deployed to ${{ steps.deploy.outputs.url }}"
