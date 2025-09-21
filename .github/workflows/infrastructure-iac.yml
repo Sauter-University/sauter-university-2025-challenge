@@ -1,0 +1,67 @@
+# GitHub Actions workflow to manage Terraform infrastructure as code (IaC)
+# reference: https://cloud.google.com/blog/products/identity-security/enabling-keyless-authentication-from-github-actions
+name: 'Terraform IaC'
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "terraform/**" # Any file in the infra folder"
+      - '**.tf'       # Any .tf file in any folder
+      - '**.tfvars'   # Any .tfvars file in any folder
+      - ".github/workflows/application-cicd.yml" # To trigger a new deployment if the CICD workflow file changes
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
+  pull-requests: 'write' # To post 'plan' comments on the PR
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Best practice: Secure authentication for Terraform.
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    # Configures the GCS backend for Terraform.
+    - name: Terraform Init
+      run: terraform init
+      working-directory: terraform
+      
+      # Check the formatting of the Terraform configuration files
+    - name: Terraform Format
+      run: terraform fmt -check
+      working-directory: terraform
+
+      # Validate the Terraform configuration
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: terraform
+
+    # Run 'plan' on all Pull Requests
+    - name: Terraform Plan
+      if: github.event_name == 'pull_request'
+      run: terraform plan -no-color -input=false
+      working-directory: terraform
+      continue-on-error: true # Optional, to avoid blocking PRs if the plan fails
+
+    # Run 'apply' only on push to the 'main' branch
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false
+      working-directory: terraform
