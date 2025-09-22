@@ -1,0 +1,28 @@
+Ignore Terraform state files and backups
+
+*.tfstate
+*.tfstate.backup
+Ignore Terraform plan files
+
+*.tfplan
+Ignore the .terraform directory, which contains modules and plugins
+
+.terraform/
+Ignore the .terraform.lock.hcl file
+
+.terraform.lock.hcl
+Ignore the terraform.tfvars file and any file with a .tfvars extension
+that might contain sensitive data.
+Note: You may want to keep a non-sensitive 'example.tfvars' file.
+
+*.tfvars
+Ignore crash logs
+
+crash.log
+Ignore provider-specific files that may be generated
+
+.gcloud/
+.aws/
+.azure/
+.vs/
+.idea/
