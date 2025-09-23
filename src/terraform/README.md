@@ -8,6 +8,8 @@ The infrastructure consists of:
 - **Main Configuration**: Core GCP project setup and API enablement
 - **Budget Module**: Billing budgets and cost alerts
 - **Monitoring Module**: Notification channels and alert policies
+- **Cloud Storage Module**: Google Cloud Storage buckets for data management
+- **Logging Module**: Cloud Logging configuration (currently disabled due to permissions)
 
 ## 📁 Project Structure
 
@@ -22,7 +24,16 @@ src/terraform/
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    └── monitoring/     # Monitoring and notifications module
+    ├── monitoring/     # Monitoring and notifications module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── cloud_storage/  # Google Cloud Storage buckets module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   ├── outputs.tf
+    │   └── README.md   # Detailed bucket documentation
+    └── logging/        # Cloud Logging configuration (disabled)
         ├── main.tf
         ├── variables.tf
         └── outputs.tf
@@ -143,6 +154,44 @@ module "monitoring" {
   enable_storage_alerts = true
 }
 ```
+
+## 🗄️ Cloud Storage Configuration
+
+### Created Buckets
+
+The infrastructure automatically creates the following Google Cloud Storage buckets:
+
+#### 1. Terraform Logs Bucket
+- **Name**: `{project_id}-terraform-logs`
+- **Purpose**: Store terraform operation logs and infrastructure audit trails
+- **URL**: `gs://{project_id}-terraform-logs`
+
+#### 2. API Data Buckets (using for_each)
+- **Raw Data**: `{project_id}-api-raw-data` - Stores raw, unprocessed API data
+- **Treated Data**: `{project_id}-api-treated-data` - Stores processed and cleaned API data  
+- **ML Data**: `{project_id}-api-ml-data` - Stores ML training data, models, and ML-related artifacts
+
+### Storage Configuration
+- **Location**: `us-central1` (configurable via `region` variable)
+- **Storage Class**: `STANDARD`
+- **Versioning**: Enabled for data protection
+- **Labels**: Applied for proper organization and cost tracking
+
+### Usage Examples
+```bash
+# List all buckets
+gsutil ls
+
+# Upload to raw data bucket
+gsutil cp data.json gs://sauter-university-472416-api-raw-data/
+
+# Copy between buckets (raw → treated)
+gsutil cp gs://sauter-university-472416-api-raw-data/data.json \
+         gs://sauter-university-472416-api-treated-data/processed_data.json
+```
+
+### Detailed Documentation
+For comprehensive bucket configuration details, see: [`modules/cloud_storage/README.md`](modules/cloud_storage/README.md)
 
 ## 🔧 Maintenance
 
