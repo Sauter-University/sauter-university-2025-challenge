@@ -30,10 +30,10 @@ output "service_accounts_info" {
   description = "Complete service accounts information"
   value = {
     for key, sa in google_service_account.service_accounts : key => {
-      email       = sa.email
-      name        = sa.name
-      account_id  = sa.account_id
-      unique_id   = sa.unique_id
+      email      = sa.email
+      name       = sa.name
+      account_id = sa.account_id
+      unique_id  = sa.unique_id
     }
   }
 }
@@ -47,9 +47,9 @@ output "service_account_email" {
 output "service_account_info" {
   description = "Complete Cloud Run API service account information (backward compatibility)"
   value = try({
-    email       = google_service_account.service_accounts["cloud_run_api"].email
-    name        = google_service_account.service_accounts["cloud_run_api"].name
-    account_id  = google_service_account.service_accounts["cloud_run_api"].account_id
-    unique_id   = google_service_account.service_accounts["cloud_run_api"].unique_id
+    email      = google_service_account.service_accounts["cloud_run_api"].email
+    name       = google_service_account.service_accounts["cloud_run_api"].name
+    account_id = google_service_account.service_accounts["cloud_run_api"].account_id
+    unique_id  = google_service_account.service_accounts["cloud_run_api"].unique_id
   }, null)
 }

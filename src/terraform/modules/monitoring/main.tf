@@ -3,7 +3,7 @@ resource "google_monitoring_notification_channel" "email_budget" {
   count        = var.enable_budget_alerts ? 1 : 0
   display_name = var.notification_display_name
   type         = "email"
-  
+
   labels = {
     email_address = var.notification_email
   }
@@ -20,7 +20,7 @@ resource "google_monitoring_notification_channel" "additional" {
   count        = length(var.additional_notification_channels)
   display_name = var.additional_notification_channels[count.index].display_name
   type         = var.additional_notification_channels[count.index].type
-  
+
   labels      = var.additional_notification_channels[count.index].labels
   user_labels = var.additional_notification_channels[count.index].user_labels
 }
@@ -30,16 +30,16 @@ resource "google_monitoring_notification_channel" "additional" {
 #   count        = var.enable_compute_alerts ? 1 : 0
 #   display_name = "High CPU Usage Alert"
 #   combiner     = "OR"
-  
+
 #   conditions {
 #     display_name = "VM Instance - High CPU"
-    
+
 #     condition_threshold {
 #       filter          = "resource.type=\"gce_instance\""
 #       comparison      = "COMPARISON_GT"
 #       threshold_value = 0.8
 #       duration        = "300s"
-      
+
 #       aggregations {
 #         alignment_period   = "60s"
 #         per_series_aligner = "ALIGN_MEAN"
@@ -59,16 +59,16 @@ resource "google_monitoring_alert_policy" "storage_usage" {
   count        = var.enable_storage_alerts ? 1 : 0
   display_name = "High Storage Usage Alert"
   combiner     = "OR"
-  
+
   conditions {
     display_name = "Cloud Storage - High Usage"
-    
+
     condition_threshold {
       filter          = "resource.type=\"gcs_bucket\""
       comparison      = "COMPARISON_GT"
-      threshold_value = 50000000000  # 50GB in bytes
+      threshold_value = 50000000000 # 50GB in bytes
       duration        = "300s"
-      
+
       aggregations {
         alignment_period   = "60s"
         per_series_aligner = "ALIGN_MEAN"
@@ -88,18 +88,18 @@ resource "google_monitoring_alert_policy" "custom" {
   count        = length(var.alert_policies)
   display_name = var.alert_policies[count.index].display_name
   combiner     = var.alert_policies[count.index].combiner
-  
+
   dynamic "conditions" {
     for_each = var.alert_policies[count.index].conditions
     content {
       display_name = conditions.value.display_name
-      
+
       condition_threshold {
         filter          = conditions.value.filter
         comparison      = conditions.value.comparison
         threshold_value = conditions.value.threshold_value
         duration        = conditions.value.threshold_duration
-        
+
         aggregations {
           alignment_period   = "60s"
           per_series_aligner = "ALIGN_MEAN"

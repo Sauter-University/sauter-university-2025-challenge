@@ -49,11 +49,11 @@ variable "alert_policies" {
     display_name = string
     combiner     = string
     conditions = list(object({
-      display_name = string
-      filter       = string
-      comparison   = string
+      display_name       = string
+      filter             = string
+      comparison         = string
       threshold_duration = string
-      threshold_value = number
+      threshold_value    = number
     }))
   }))
   default = []
