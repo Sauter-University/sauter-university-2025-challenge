@@ -30,6 +30,7 @@ resource "google_project_service" "apis" {
     "iam.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
+    "run.googleapis.com",
     "storage.googleapis.com"
   ])
 
@@ -183,13 +184,59 @@ module "iam" {
         "roles/logging.admin",
         "roles/monitoring.admin",
         "roles/resourcemanager.projectIamAdmin",
-        "roles/serviceusage.serviceUsageAdmin"
+        "roles/serviceusage.serviceUsageAdmin",
+        "roles/run.admin"
       ]
     }
   }
 
   depends_on = [
     google_project_service.apis
+  ]
+}
+
+# Cloud Run service for hosting the Python API
+module "cloud_run_api" {
+  source = "./modules/cloud_run"
+
+  project_id            = var.project_id
+  region               = var.region
+  service_name         = var.cloud_run_service_name
+  # Use a placeholder image until the actual image is built
+  container_image      = "gcr.io/cloudrun/hello"
+  service_account_email = module.iam.service_account_emails["cloud_run_api"]
+  
+  # Resource configuration
+  cpu_limit            = "1000m"
+  memory_limit         = "512Mi"
+  max_scale           = 10
+  min_scale           = 0
+  concurrency         = 80
+  timeout_seconds     = 300
+  
+  # Security
+  allow_unauthenticated = true
+  deletion_protection   = false  # Allow deletion in development
+  
+  # Environment variables (can be extended as needed)
+  environment_variables = {
+    PROJECT_ID = var.project_id
+    REGION     = var.region
+    ENV        = "development"
+  }
+  
+  # Labels
+  labels = {
+    environment = "development"
+    project     = "sauter-university"
+    purpose     = "api-service"
+    managed_by  = "terraform"
+  }
+
+  depends_on = [
+    google_project_service.apis,
+    module.iam,
+    module.docker_repository
   ]
 }
 

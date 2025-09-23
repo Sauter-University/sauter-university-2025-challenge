@@ -153,6 +153,22 @@ output "all_service_accounts" {
   value       = module.iam.service_accounts_info
 }
 
+# Cloud Run outputs
+output "api_service_url" {
+  description = "The URL of the deployed API service"
+  value       = module.cloud_run_api.service_url
+}
+
+output "api_service_name" {
+  description = "The name of the API service"
+  value       = module.cloud_run_api.service_name
+}
+
+output "api_service_location" {
+  description = "The location of the API service"
+  value       = module.cloud_run_api.service_location
+}
+
 # Infrastructure summary
 output "infrastructure_summary" {
   description = "Summary of all provisioned infrastructure"
@@ -165,5 +181,6 @@ output "infrastructure_summary" {
     enabled_apis        = length([for api in google_project_service.apis : api.service])
     service_account     = module.iam.service_account_email
     terraform_sa        = module.iam.service_account_emails["terraform"]
+    api_service_url     = module.cloud_run_api.service_url
   }
 }
