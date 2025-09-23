@@ -22,7 +22,7 @@ resource "google_storage_bucket_iam_member" "terraform_logs_sink_writer" {
 resource "google_logging_project_sink" "terraform_audit_logs_sink" {
   name                   = "${var.log_sink_name}-audit"
   destination            = "storage.googleapis.com/${var.project_id}-${var.terraform_logs_bucket_name}"
-  filter                 = "protoPayload.methodName:\"terraform\" OR protoPayload.resourceName:\"terraform\" OR protoPayload.request.resource:\"terraform\""
+  filter                 = "logName=\"projects/${var.project_id}/logs/cloudaudit.googleapis.com%2Factivity\" AND (protoPayload.serviceName=\"storage.googleapis.com\" OR protoPayload.serviceName=\"iam.googleapis.com\" OR protoPayload.serviceName=\"cloudresourcemanager.googleapis.com\" OR protoPayload.serviceName=\"logging.googleapis.com\")"
   unique_writer_identity = var.unique_writer_identity
 
   description = "Sink to export terraform audit logs to Cloud Storage bucket"
@@ -41,7 +41,7 @@ resource "google_storage_bucket_iam_member" "terraform_audit_logs_sink_writer" {
 resource "google_logging_project_sink" "terraform_custom_logs_sink" {
   name                   = "${var.log_sink_name}-custom"
   destination            = "storage.googleapis.com/${var.project_id}-${var.terraform_logs_bucket_name}"
-  filter                 = "jsonPayload.terraform_operation:*"
+  filter                 = "resource.type=\"project\" OR resource.type=\"gcs_bucket\" OR resource.type=\"logging_sink\" OR resource.type=\"service_account\""
   unique_writer_identity = var.unique_writer_identity
 
   description = "Sink to export custom terraform operation logs to Cloud Storage bucket"
