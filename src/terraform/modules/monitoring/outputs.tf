@@ -15,7 +15,7 @@ output "additional_notification_channels" {
 
 output "compute_alert_policy_name" {
   description = "The name of the compute high CPU alert policy"
-  value       = var.enable_compute_alerts ? google_monitoring_alert_policy.compute_high_cpu[0].name : null
+  value       = null # Commented out in main.tf - var.enable_compute_alerts ? google_monitoring_alert_policy.compute_high_cpu[0].name : null
 }
 
 output "storage_alert_policy_name" {

@@ -53,6 +53,50 @@ output "enabled_apis" {
   value       = [for api in google_project_service.apis : api.service]
 }
 
+# Cloud Storage outputs
+output "terraform_logs_bucket" {
+  description = "Information about the terraform logs bucket"
+  value = {
+    name      = module.cloud_storage.terraform_logs_bucket_name
+    url       = module.cloud_storage.terraform_logs_bucket_url
+    self_link = module.cloud_storage.terraform_logs_bucket_self_link
+  }
+}
+
+output "api_buckets" {
+  description = "Information about the API buckets"
+  value = {
+    names      = module.cloud_storage.api_bucket_names
+    urls       = module.cloud_storage.api_bucket_urls
+    self_links = module.cloud_storage.api_bucket_self_links
+  }
+}
+
+output "storage_buckets_summary" {
+  description = "Summary of all created storage buckets"
+  value       = module.cloud_storage.bucket_summary
+}
+
+# Logging outputs - temporarily commented out due to permission issues
+# output "terraform_logs_sink" {
+#   description = "Information about the terraform logs sink"
+#   value = {
+#     id               = module.logging.terraform_logs_sink_id
+#     name            = module.logging.terraform_logs_sink_name
+#     writer_identity = module.logging.terraform_logs_sink_writer_identity
+#   }
+# }
+
+# output "logging_sinks_summary" {
+#   description = "Summary of all logging sinks"
+#   value = {
+#     terraform_logs_sink_id     = module.logging.terraform_logs_sink_id
+#     audit_logs_sink_id         = module.logging.terraform_audit_logs_sink_id
+#     custom_logs_sink_id        = module.logging.terraform_custom_logs_sink_id
+#     all_writer_identities      = module.logging.all_sink_writer_identities
+#   }
+# }
+
 # Data source to get project info for outputs
 data "google_project" "project" {
   project_id = var.project_id

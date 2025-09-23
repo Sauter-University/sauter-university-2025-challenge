@@ -45,3 +45,9 @@ variable "billing_account_id" {
   type        = string
   default     = "01E2EF-4F5B53-1C7A01"
 }
+
+variable "enable_bucket_force_destroy" {
+  description = "Enable force destroy for storage buckets (useful for development)"
+  type        = bool
+  default     = false
+}
