@@ -26,7 +26,9 @@ resource "google_project_service" "apis" {
     "cloudresourcemanager.googleapis.com",
     "compute.googleapis.com",
     "iam.googleapis.com",
-    "monitoring.googleapis.com"
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "storage.googleapis.com"
   ])
 
   project = var.project_id
@@ -69,3 +71,34 @@ module "dev_budget" {
     module.monitoring
   ]
 }
+
+# Create cloud storage buckets
+module "cloud_storage" {
+  source = "./modules/cloud_storage"
+
+  project_id                  = var.project_id
+  region                     = var.region
+  terraform_logs_bucket_name = "terraform-logs"
+  force_destroy              = var.enable_bucket_force_destroy
+  enable_versioning          = true
+
+  depends_on = [
+    google_project_service.apis
+  ]
+}
+
+# Configure logging to terraform_logs bucket
+# Temporarily commented out due to permission issues
+# module "logging" {
+#   source = "./modules/logging"
+#
+#   project_id                  = var.project_id
+#   terraform_logs_bucket_name = "terraform-logs"
+#   log_sink_name              = "terraform-logs-sink"
+#   unique_writer_identity     = true
+#
+#   depends_on = [
+#     google_project_service.apis,
+#     module.cloud_storage
+#   ]
+# }
