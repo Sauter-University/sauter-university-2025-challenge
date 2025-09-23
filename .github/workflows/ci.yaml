@@ -17,15 +17,12 @@ jobs:
       - name: "Setup Terraform"
         uses: hashicorp/setup-terraform@v2
 
-      # --- CORREÇÃO APLICADA AQUI ---
       - name: "Terraform Format Check"
         run: terraform -chdir=./src/terraform fmt -check -recursive
 
-      # --- CORREÇÃO APLICADA AQUI ---
       - name: "Terraform Init"
         run: terraform -chdir=./src/terraform init -backend=false -input=false
       
-      # --- CORREÇÃO APLICADA AQUI ---
       - name: "Terraform Validate"
         run: terraform -chdir=./src/terraform validate
 
@@ -37,11 +34,9 @@ jobs:
       - name: "Install UV and Dependencies"
         run: |
           pip install uv
-          # Movemos o requirements.txt para dentro da api, então o caminho muda
-          uv pip install --system -r src/api/requirements.txt pytest pytest-cov
+          uv pip install --system -r src/api/requirements.txt pytest pytest-cov httpx
 
       - name: "Run API Tests with Coverage"
-        
-        run: 
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest src/api/tests/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: pytest src/api/tests/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
