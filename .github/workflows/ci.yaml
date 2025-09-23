@@ -1,0 +1,48 @@
+name: CI - Run Tests and Validation
+
+# Gatilho: Roda em toda abertura ou atualização de Pull Request para a branch 'main'
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Job único para rodar todas as validações de qualidade
+  run-quality-checks:
+    name: Run Tests and Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v3
+
+      - name: "Setup Terraform"
+        uses: hashicorp/setup-terraform@v2
+
+      - name: "Terraform Format Check"
+        id: fmt
+        run: terraform fmt -check -recursive ./src/terraform
+        continue-on-error: true # Continua mesmo se falhar para rodar os outros testes
+
+      - name: "Terraform Init"
+        id: init
+        run: terraform init -backend=false -input=false ./src/terraform
+
+      - name: "Terraform Validate"
+        id: validate
+        run: terraform validate ./src/terraform
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  
+
+      - name: "Install UV and Dependencies"
+        run: |
+          pip install uv
+          # Instala as dependências da API e as de teste
+          uv pip install --system -r src/api/requirements.txt pytest pytest-cov
+
+      - name: "Run API Tests with Coverage"
+        id: coverage
+        run: pytest src/api/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
