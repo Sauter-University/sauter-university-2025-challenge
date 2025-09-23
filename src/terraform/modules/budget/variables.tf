@@ -42,3 +42,9 @@ variable "enable_notifications" {
   type        = bool
   default     = true
 }
+
+variable "disable_default_iam_recipients" {
+  description = "Whether to disable default IAM recipients for budget notifications"
+  type        = bool
+  default     = false
+}

@@ -28,14 +28,12 @@ resource "google_billing_budget" "dev_budget" {
     }
   }
 
-  # Configure notifications if enabled and channels are provided
+  # Disable all custom notifications - only use native GCP notifications if needed
   dynamic "all_updates_rule" {
-    for_each = var.enable_notifications && length(var.notification_channels) > 0 ? [1] : []
+    for_each = var.enable_notifications ? [1] : []
     content {
       monitoring_notification_channels = var.notification_channels
-      
-      disable_default_iam_recipients = false
-      
+      disable_default_iam_recipients = var.disable_default_iam_recipients
       schema_version = "1.0"
     }
   }
