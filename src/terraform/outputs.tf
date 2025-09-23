@@ -101,3 +101,39 @@ output "storage_buckets_summary" {
 data "google_project" "project" {
   project_id = var.project_id
 }
+
+# BigQuery outputs
+output "bigquery_dataset" {
+  description = "Information about the BigQuery data warehouse dataset"
+  value = {
+    dataset_id           = module.data_warehouse_dataset.dataset_id
+    dataset_url          = module.data_warehouse_dataset.dataset_url
+    creation_time        = module.data_warehouse_dataset.creation_time
+    last_modified_time   = module.data_warehouse_dataset.last_modified_time
+  }
+}
+
+# Artifact Registry outputs
+output "artifact_registry_repository" {
+  description = "Information about the Artifact Registry Docker repository"
+  value = {
+    repository_id   = module.docker_repository.repository_id
+    repository_name = module.docker_repository.repository_name
+    repository_url  = module.docker_repository.repository_url
+    create_time     = module.docker_repository.create_time
+    update_time     = module.docker_repository.update_time
+  }
+}
+
+# Infrastructure summary
+output "infrastructure_summary" {
+  description = "Summary of all provisioned infrastructure"
+  value = {
+    project_id          = var.project_id
+    region              = var.region
+    bigquery_dataset    = module.data_warehouse_dataset.dataset_id
+    docker_registry     = module.docker_repository.repository_url
+    storage_buckets     = length(module.cloud_storage.api_bucket_names)
+    enabled_apis        = length([for api in google_project_service.apis : api.service])
+  }
+}

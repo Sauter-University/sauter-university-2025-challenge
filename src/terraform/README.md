@@ -9,6 +9,8 @@ The infrastructure consists of:
 - **Budget Module**: Billing budgets and cost alerts
 - **Monitoring Module**: Notification channels and alert policies
 - **Cloud Storage Module**: Google Cloud Storage buckets for data management
+- **BigQuery Module**: Data warehouse dataset for analytics and reporting
+- **Artifact Registry Module**: Docker container registry for application images
 - **Logging Module**: Cloud Logging configuration (currently disabled due to permissions)
 
 ## 📁 Project Structure
@@ -33,6 +35,14 @@ src/terraform/
     │   ├── variables.tf
     │   ├── outputs.tf
     │   └── README.md   # Detailed bucket documentation
+    ├── bigquery/       # BigQuery data warehouse module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── artifact_registry/ # Docker container registry module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
     └── logging/        # Cloud Logging configuration (disabled)
         ├── main.tf
         ├── variables.tf
@@ -99,6 +109,9 @@ src/terraform/
 | `zone` | GCP Zone | `us-central1-a` | No |
 | `budget_alert_email` | Email for budget alerts | `sauter-university-472416@googlegroups.com` | No |
 | `dev_budget_amount` | Budget amount in BRL | `300` | No |
+| `bigquery_dataset_id` | BigQuery dataset ID | `sauter_challenge_dataset` | No |
+| `artifact_registry_repository_id` | Artifact Registry repository ID | `sauter-university-docker-repo` | No |
+| `dev_budget_amount` | Budget amount in BRL | `300` | No |
 
 ### Variable Customization
 
@@ -111,17 +124,27 @@ region              = "us-west1"
 zone                = "us-west1-a"
 budget_alert_email  = "your-email@domain.com"
 dev_budget_amount   = 500
+
+# BigQuery Configuration
+bigquery_dataset_id = "your_custom_dataset"
+
+# Artifact Registry Configuration
+artifact_registry_repository_id = "your-docker-repo"
 ```
 
 ## 📊 Enabled Google Cloud APIs
 
 The configuration automatically enables these APIs:
+- `artifactregistry.googleapis.com` - Artifact Registry for container images
+- `bigquery.googleapis.com` - BigQuery data warehouse
 - `billingbudgets.googleapis.com` - Billing budgets
 - `cloudbilling.googleapis.com` - Cloud billing
 - `cloudresourcemanager.googleapis.com` - Resource management
 - `compute.googleapis.com` - Compute Engine
 - `iam.googleapis.com` - Identity and Access Management
+- `logging.googleapis.com` - Cloud Logging
 - `monitoring.googleapis.com` - Cloud Monitoring
+- `storage.googleapis.com` - Cloud Storage
 
 ## 💰 Budget & Alerts
 
@@ -193,7 +216,86 @@ gsutil cp gs://sauter-university-472416-api-raw-data/data.json \
 ### Detailed Documentation
 For comprehensive bucket configuration details, see: [`modules/cloud_storage/README.md`](modules/cloud_storage/README.md)
 
-## 🔧 Maintenance
+## �️ BigQuery Data Warehouse
+
+### Dataset Configuration
+
+The infrastructure provisions a BigQuery dataset for data warehouse operations:
+
+#### Dataset Details
+- **Dataset ID**: `sauter_challenge_dataset` (configurable via `bigquery_dataset_id` variable)
+- **Friendly Name**: "Sauter University Data Warehouse"
+- **Location**: Automatically set based on region (`US` for `us-central1`, otherwise uppercase region)
+- **Purpose**: Store processed university data for analytics and reporting
+
+#### Features
+- **No Table Expiration**: Tables persist indefinitely for data warehouse use cases
+- **Flexible Access Control**: Configurable access permissions
+- **Proper Labeling**: Environment, project, and purpose labels for organization
+- **Force Destroy**: Follows same setting as storage buckets for consistency
+
+#### Access Control
+The dataset includes default access controls that can be customized in the module configuration.
+
+#### Usage Examples
+```bash
+# Query the dataset using bq CLI
+bq ls sauter_challenge_dataset
+
+# Create a table in the dataset
+bq mk -t sauter_challenge_dataset.university_data \
+  student_id:STRING,name:STRING,enrollment_date:DATE
+
+# Query data
+bq query --use_legacy_sql=false \
+  'SELECT * FROM `sauter-university-472416.sauter_challenge_dataset.university_data` LIMIT 10'
+```
+
+## 🐳 Artifact Registry (Docker Repository)
+
+### Container Registry Configuration
+
+The infrastructure provisions an Artifact Registry repository for storing Docker container images:
+
+#### Repository Details
+- **Repository ID**: `sauter-university-docker-repo` (configurable via `artifact_registry_repository_id` variable)
+- **Format**: `DOCKER` - Specifically configured for Docker container images
+- **Location**: Uses the same region as other resources (`us-central1`)
+- **Purpose**: Store application container images for deployment
+
+#### Repository URL
+```
+https://us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
+```
+
+#### Features
+- **Docker Format**: Optimized for Docker container storage
+- **Regional Storage**: Located in the same region as other resources
+- **Proper Labeling**: Environment, project, and purpose labels
+- **IAM Integration**: Integrates with GCP IAM for access control
+
+#### Usage Examples
+```bash
+# Configure Docker to use the registry
+gcloud auth configure-docker us-central1-docker.pkg.dev
+
+# Tag your image for the registry
+docker tag my-app:latest \
+  us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/my-app:latest
+
+# Push image to the registry
+docker push \
+  us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/my-app:latest
+
+# Pull image from the registry
+docker pull \
+  us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/my-app:latest
+
+# List all images in the repository
+gcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
+```
+
+## �🔧 Maintenance
 
 ### Updating Infrastructure
 ```
@@ -326,6 +428,24 @@ After successful deployment, the following outputs are available:
 | `zone` | The configured GCP zone |
 | `budget_name` | The created budget name |
 | `notification_channels` | List of notification channel IDs |
+| `bigquery_dataset` | BigQuery dataset information (ID, URL, creation time) |
+| `artifact_registry_repository` | Artifact Registry repository information (ID, name, URL) |
+| `infrastructure_summary` | Summary of all provisioned infrastructure |
+| `storage_buckets_summary` | Summary of all Cloud Storage buckets |
+| `enabled_apis` | List of all enabled Google Cloud APIs |
+
+### Accessing Output Values
+```bash
+# View all outputs
+terraform output
+
+# View specific output
+terraform output bigquery_dataset
+terraform output artifact_registry_repository
+
+# Get repository URL for Docker commands
+terraform output -json artifact_registry_repository | jq -r '.repository_url'
+```
 
 ## 🔍 Troubleshooting
 

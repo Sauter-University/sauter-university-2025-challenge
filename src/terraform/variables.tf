@@ -51,3 +51,15 @@ variable "enable_bucket_force_destroy" {
   type        = bool
   default     = false
 }
+
+variable "bigquery_dataset_id" {
+  description = "The BigQuery dataset ID for the data warehouse"
+  type        = string
+  default     = "sauter_challenge_dataset"
+}
+
+variable "artifact_registry_repository_id" {
+  description = "The Artifact Registry repository ID for Docker images"
+  type        = string
+  default     = "sauter-university-docker-repo"
+}
