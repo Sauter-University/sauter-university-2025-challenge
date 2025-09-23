@@ -17,7 +17,7 @@ variable "log_sink_name" {
 variable "log_filter" {
   description = "Filter for Cloud Logging sink to capture terraform-related logs"
   type        = string
-  default     = "resource.type=\"gce_instance\" OR resource.type=\"k8s_container\" OR protoPayload.serviceName=\"compute.googleapis.com\" OR protoPayload.serviceName=\"storage.googleapis.com\" OR labels.terraform=\"true\""
+  default     = "protoPayload.serviceName=\"storage.googleapis.com\" OR protoPayload.serviceName=\"cloudresourcemanager.googleapis.com\" OR protoPayload.serviceName=\"iam.googleapis.com\" OR protoPayload.serviceName=\"logging.googleapis.com\" OR protoPayload.serviceName=\"bigquery.googleapis.com\" OR protoPayload.serviceName=\"artifactregistry.googleapis.com\""
 }
 
 variable "unique_writer_identity" {
