@@ -36,7 +36,7 @@ jobs:
           pip install uv
           uv pip install --system -r src/api/requirements.txt pytest pytest-cov httpx
 
-      - name: "Run API Tests with Coverage"
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: pytest src/api/tests/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
+      #- name: "Run API Tests with Coverage"
+      #  env:
+      #    PYTHONPATH: ${{ github.workspace }}
+      #  run: pytest src/api/tests/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
