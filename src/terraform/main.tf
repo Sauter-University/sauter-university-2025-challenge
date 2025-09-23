@@ -47,29 +47,11 @@ module "cloud_storage" {
 
   project_id                  = var.project_id
   region                     = var.region
-  terraform_logs_bucket_name = "terraform-logs"
   force_destroy              = var.enable_bucket_force_destroy
   enable_versioning          = true
 
   depends_on = [
     google_project_service.apis
-  ]
-}
-
-# Configure logging to terraform_logs bucket
-# This module creates logging sinks to export logs to the GCS bucket
-module "logging" {
-  source = "./modules/logging"
-
-  project_id                  = var.project_id
-  terraform_logs_bucket_name = "terraform-logs"
-  log_sink_name              = "terraform-logs-sink"
-  unique_writer_identity     = true
-
-  depends_on = [
-    google_project_service.apis,
-    module.cloud_storage,  # Bucket must exist first
-    module.iam            # IAM permissions must be set first
   ]
 }
 
@@ -181,7 +163,6 @@ module "iam" {
         "roles/artifactregistry.admin",
         "roles/iam.serviceAccountAdmin",
         "roles/iam.serviceAccountUser",
-        "roles/logging.admin",
         "roles/monitoring.admin",
         "roles/resourcemanager.projectIamAdmin",
         "roles/serviceusage.serviceUsageAdmin",

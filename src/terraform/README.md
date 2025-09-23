@@ -237,7 +237,6 @@ Cloud Run metrics integrate with the monitoring module for:
 - **BigQuery Module**: Data warehouse dataset for analytics and reporting
 - **Artifact Registry Module**: Docker container registry for application images
 - **Cloud Run Module**: Serverless container platform for hosting Python API
-- **Logging Module**: Cloud Logging configuration with log sinks
 
 ## 📁 Project Structure
 
@@ -273,11 +272,7 @@ src/terraform/
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    ├── cloud_run/      # Cloud Run serverless platform module
-    │   ├── main.tf
-    │   ├── variables.tf
-    │   └── outputs.tf
-    └── logging/        # Cloud Logging configuration
+    └── cloud_run/      # Cloud Run serverless platform module
         ├── main.tf
         ├── variables.tf
         └── outputs.tf
@@ -378,7 +373,6 @@ The configuration automatically enables these APIs:
 - `cloudresourcemanager.googleapis.com` - Resource management
 - `compute.googleapis.com` - Compute Engine
 - `iam.googleapis.com` - Identity and Access Management
-- `logging.googleapis.com` - Cloud Logging
 - `monitoring.googleapis.com` - Cloud Monitoring
 - `run.googleapis.com` - Cloud Run serverless platform
 - `storage.googleapis.com` - Cloud Storage
@@ -868,7 +862,6 @@ Minimum required roles for deploying this infrastructure:
 - `roles/bigquery.admin` - For creating and managing BigQuery datasets
 - `roles/artifactregistry.admin` - For creating and managing Artifact Registry repositories
 - `roles/run.admin` - For creating and managing Cloud Run services
-- `roles/logging.admin` - For creating and managing logging sinks
 
 ## 📚 Additional Resources
 

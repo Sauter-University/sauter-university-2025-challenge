@@ -9,12 +9,6 @@ variable "region" {
   default     = "us-central1"
 }
 
-variable "terraform_logs_bucket_name" {
-  description = "Name for the terraform logs bucket"
-  type        = string
-  default     = "terraform-logs"
-}
-
 variable "api_buckets" {
   description = "Map of API bucket names and their configurations"
   type = map(object({
