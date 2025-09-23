@@ -40,6 +40,38 @@ resource "google_project_service" "apis" {
   disable_on_destroy        = false
 }
 
+# Create cloud storage buckets
+module "cloud_storage" {
+  source = "./modules/cloud_storage"
+
+  project_id                  = var.project_id
+  region                     = var.region
+  terraform_logs_bucket_name = "terraform-logs"
+  force_destroy              = var.enable_bucket_force_destroy
+  enable_versioning          = true
+
+  depends_on = [
+    google_project_service.apis
+  ]
+}
+
+# Configure logging to terraform_logs bucket
+# This module creates logging sinks to export logs to the GCS bucket
+module "logging" {
+  source = "./modules/logging"
+
+  project_id                  = var.project_id
+  terraform_logs_bucket_name = "terraform-logs"
+  log_sink_name              = "terraform-logs-sink"
+  unique_writer_identity     = true
+
+  depends_on = [
+    google_project_service.apis,
+    module.cloud_storage,  # Bucket must exist first
+    module.iam            # IAM permissions must be set first
+  ]
+}
+
 # Create monitoring infrastructure
 module "monitoring" {
   source = "./modules/monitoring"
@@ -73,37 +105,6 @@ module "dev_budget" {
     module.monitoring
   ]
 }
-
-# Create cloud storage buckets
-module "cloud_storage" {
-  source = "./modules/cloud_storage"
-
-  project_id                  = var.project_id
-  region                     = var.region
-  terraform_logs_bucket_name = "terraform-logs"
-  force_destroy              = var.enable_bucket_force_destroy
-  enable_versioning          = true
-
-  depends_on = [
-    google_project_service.apis
-  ]
-}
-
-# Configure logging to terraform_logs bucket
-# Temporarily commented out due to permission issues
-# module "logging" {
-#   source = "./modules/logging"
-#
-#   project_id                  = var.project_id
-#   terraform_logs_bucket_name = "terraform-logs"
-#   log_sink_name              = "terraform-logs-sink"
-#   unique_writer_identity     = true
-#
-#   depends_on = [
-#     google_project_service.apis,
-#     module.cloud_storage
-#   ]
-# }
 
 # BigQuery Dataset for data warehouse
 module "data_warehouse_dataset" {
@@ -150,3 +151,46 @@ module "docker_repository" {
     google_project_service.apis
   ]
 }
+
+# IAM module for all service accounts
+module "iam" {
+  source = "./modules/iam"
+
+  project_id = var.project_id
+  
+  service_accounts = {
+    cloud_run_api = {
+      account_id   = "cloud-run-api-sa"
+      display_name = "Cloud Run API Service Account"
+      description  = "Service account for Cloud Run API with minimum required permissions"
+      roles = [
+        "roles/bigquery.dataViewer",
+        "roles/bigquery.jobUser",
+        "roles/storage.objectViewer"
+      ]
+    }
+    terraform = {
+      account_id   = "terraform-sa"
+      display_name = "Terraform Service Account"
+      description  = "Service account for Terraform infrastructure management operations"
+      roles = [
+        "roles/compute.admin",
+        "roles/storage.admin",
+        "roles/bigquery.admin",
+        "roles/artifactregistry.admin",
+        "roles/iam.serviceAccountAdmin",
+        "roles/iam.serviceAccountUser",
+        "roles/logging.admin",
+        "roles/monitoring.admin",
+        "roles/resourcemanager.projectIamAdmin",
+        "roles/serviceusage.serviceUsageAdmin"
+      ]
+    }
+  }
+
+  depends_on = [
+    google_project_service.apis
+  ]
+}
+
+

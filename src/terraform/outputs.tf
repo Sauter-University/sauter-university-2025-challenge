@@ -77,25 +77,25 @@ output "storage_buckets_summary" {
   value       = module.cloud_storage.bucket_summary
 }
 
-# Logging outputs - temporarily commented out due to permission issues
-# output "terraform_logs_sink" {
-#   description = "Information about the terraform logs sink"
-#   value = {
-#     id               = module.logging.terraform_logs_sink_id
-#     name            = module.logging.terraform_logs_sink_name
-#     writer_identity = module.logging.terraform_logs_sink_writer_identity
-#   }
-# }
+# Logging outputs
+output "terraform_logs_sink" {
+  description = "Information about the terraform logs sink"
+  value = {
+    id               = module.logging.terraform_logs_sink_id
+    name            = module.logging.terraform_logs_sink_name
+    writer_identity = module.logging.terraform_logs_sink_writer_identity
+  }
+}
 
-# output "logging_sinks_summary" {
-#   description = "Summary of all logging sinks"
-#   value = {
-#     terraform_logs_sink_id     = module.logging.terraform_logs_sink_id
-#     audit_logs_sink_id         = module.logging.terraform_audit_logs_sink_id
-#     custom_logs_sink_id        = module.logging.terraform_custom_logs_sink_id
-#     all_writer_identities      = module.logging.all_sink_writer_identities
-#   }
-# }
+output "logging_sinks_summary" {
+  description = "Summary of all logging sinks"
+  value = {
+    terraform_logs_sink_id     = module.logging.terraform_logs_sink_id
+    audit_logs_sink_id         = module.logging.terraform_audit_logs_sink_id
+    custom_logs_sink_id        = module.logging.terraform_custom_logs_sink_id
+    all_writer_identities      = module.logging.all_sink_writer_identities
+  }
+}
 
 # Data source to get project info for outputs
 data "google_project" "project" {
@@ -125,6 +125,34 @@ output "artifact_registry_repository" {
   }
 }
 
+# Service Account outputs
+output "cloud_run_api_service_account" {
+  description = "Information about the Cloud Run API service account"
+  value       = module.iam.service_account_info
+}
+
+output "cloud_run_api_service_account_email" {
+  description = "Email of the Cloud Run API service account"
+  value       = module.iam.service_account_email
+}
+
+# Terraform Service Account outputs
+output "terraform_service_account" {
+  description = "Information about the Terraform service account"
+  value       = module.iam.service_accounts_info["terraform"]
+}
+
+output "terraform_service_account_email" {
+  description = "Email of the Terraform service account"
+  value       = module.iam.service_account_emails["terraform"]
+}
+
+# All service accounts output
+output "all_service_accounts" {
+  description = "Information about all service accounts"
+  value       = module.iam.service_accounts_info
+}
+
 # Infrastructure summary
 output "infrastructure_summary" {
   description = "Summary of all provisioned infrastructure"
@@ -135,5 +163,7 @@ output "infrastructure_summary" {
     docker_registry     = module.docker_repository.repository_url
     storage_buckets     = length(module.cloud_storage.api_bucket_names)
     enabled_apis        = length([for api in google_project_service.apis : api.service])
+    service_account     = module.iam.service_account_email
+    terraform_sa        = module.iam.service_account_emails["terraform"]
   }
 }
