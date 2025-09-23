@@ -26,33 +26,33 @@ resource "google_monitoring_notification_channel" "additional" {
 }
 
 # Compute instance high CPU alert policy
-resource "google_monitoring_alert_policy" "compute_high_cpu" {
-  count        = var.enable_compute_alerts ? 1 : 0
-  display_name = "High CPU Usage Alert"
-  combiner     = "OR"
+# resource "google_monitoring_alert_policy" "compute_high_cpu" {
+#   count        = var.enable_compute_alerts ? 1 : 0
+#   display_name = "High CPU Usage Alert"
+#   combiner     = "OR"
   
-  conditions {
-    display_name = "VM Instance - High CPU"
+#   conditions {
+#     display_name = "VM Instance - High CPU"
     
-    condition_threshold {
-      filter          = "resource.type=\"gce_instance\""
-      comparison      = "COMPARISON_GT"
-      threshold_value = 0.8
-      duration        = "300s"
+#     condition_threshold {
+#       filter          = "resource.type=\"gce_instance\""
+#       comparison      = "COMPARISON_GT"
+#       threshold_value = 0.8
+#       duration        = "300s"
       
-      aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
-      }
-    }
-  }
+#       aggregations {
+#         alignment_period   = "60s"
+#         per_series_aligner = "ALIGN_MEAN"
+#       }
+#     }
+#   }
 
-  notification_channels = var.enable_budget_alerts ? [google_monitoring_notification_channel.email_budget[0].name] : []
+#   notification_channels = var.enable_budget_alerts ? [google_monitoring_notification_channel.email_budget[0].name] : []
 
-  alert_strategy {
-    auto_close = "1800s"
-  }
-}
+#   alert_strategy {
+#     auto_close = "1800s"
+#   }
+# }
 
 # Storage usage alert policy
 resource "google_monitoring_alert_policy" "storage_usage" {
