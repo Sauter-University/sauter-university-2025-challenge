@@ -58,21 +58,3 @@ variable "alert_policies" {
   }))
   default = []
 }
-
-variable "enable_test_alerts" {
-  description = "Whether to enable test alert for email notification testing"
-  type        = bool
-  default     = false
-}
-
-variable "enable_test_email_alerts" {
-  description = "Whether to enable test email alerts that trigger when compute instances are running"
-  type        = bool
-  default     = false
-}
-
-variable "enable_immediate_test_email" {
-  description = "Whether to enable immediate test email alert (triggers right away for testing)"
-  type        = bool
-  default     = false
-}

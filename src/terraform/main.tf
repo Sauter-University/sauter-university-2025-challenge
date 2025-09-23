@@ -46,10 +46,6 @@ module "monitoring" {
   enable_budget_alerts      = true
   enable_compute_alerts     = false 
   enable_storage_alerts     = false
-  
-  # Test email configuration
-  enable_test_email_alerts     = var.enable_test_email_alerts
-  enable_immediate_test_email  = var.enable_immediate_test_email
 
   depends_on = [
     google_project_service.apis

@@ -45,15 +45,3 @@ variable "billing_account_id" {
   type        = string
   default     = "01E2EF-4F5B53-1C7A01"
 }
-
-variable "enable_test_email_alerts" {
-  description = "Enable test email alerts to verify Google Group email functionality"
-  type        = bool
-  default     = false
-}
-
-variable "enable_immediate_test_email" {
-  description = "Enable immediate test email alert that triggers right away"
-  type        = bool
-  default     = false
-}

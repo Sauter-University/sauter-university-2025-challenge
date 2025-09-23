@@ -10,7 +10,3 @@ zone       = "us-central1-a"
 # Budget Configuration
 dev_budget_amount   = 300
 budget_alert_email  = "sauter-university-472416@googlegroups.com"
-
-# Test Email Configuration - Enable to test Google Group email delivery
-enable_test_email_alerts    = true   # Enable test alerts when compute instances are running
-enable_immediate_test_email = true   # Enable immediate test alert (triggers right away)
