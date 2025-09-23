@@ -44,7 +44,7 @@ resource "google_project_service" "apis" {
 module "cloud_storage" {
   source = "./modules/cloud_storage"
 
-  project_id                  = var.project_id
+  project_id                 = var.project_id
   region                     = var.region
   terraform_logs_bucket_name = "terraform-logs"
   force_destroy              = var.enable_bucket_force_destroy
@@ -60,14 +60,14 @@ module "cloud_storage" {
 module "logging" {
   source = "./modules/logging"
 
-  project_id                  = var.project_id
+  project_id                 = var.project_id
   terraform_logs_bucket_name = "terraform-logs"
   log_sink_name              = "terraform-logs-sink"
   unique_writer_identity     = true
 
   depends_on = [
     google_project_service.apis,
-    module.cloud_storage,  # Bucket must exist first
+    module.cloud_storage, # Bucket must exist first
     module.iam            # IAM permissions must be set first
   ]
 }
@@ -111,13 +111,13 @@ module "data_warehouse_dataset" {
   source = "./modules/bigquery"
 
 
-  project_id                 = var.project_id
-  dataset_id                 = var.bigquery_dataset_id
-  dataset_friendly_name      = "Sauter University Data Warehouse"
-  description                = "Data warehouse dataset for storing processed university data for analytics and reporting"
-  location                   = var.region == "us-central1" ? "US" : upper(var.region)
-  default_table_expiration_ms = null # No expiration for data warehouse tables
-  delete_contents_on_destroy = var.enable_bucket_force_destroy # Use same setting as buckets for consistency
+  project_id                  = var.project_id
+  dataset_id                  = var.bigquery_dataset_id
+  dataset_friendly_name       = "Sauter University Data Warehouse"
+  description                 = "Data warehouse dataset for storing processed university data for analytics and reporting"
+  location                    = var.region == "us-central1" ? "US" : upper(var.region)
+  default_table_expiration_ms = null                            # No expiration for data warehouse tables
+  delete_contents_on_destroy  = var.enable_bucket_force_destroy # Use same setting as buckets for consistency
 
   labels = {
     environment = "development"
@@ -158,7 +158,7 @@ module "iam" {
   source = "./modules/iam"
 
   project_id = var.project_id
-  
+
   service_accounts = {
     cloud_run_api = {
       account_id   = "cloud-run-api-sa"

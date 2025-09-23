@@ -81,7 +81,7 @@ output "storage_buckets_summary" {
 output "terraform_logs_sink" {
   description = "Information about the terraform logs sink"
   value = {
-    id               = module.logging.terraform_logs_sink_id
+    id              = module.logging.terraform_logs_sink_id
     name            = module.logging.terraform_logs_sink_name
     writer_identity = module.logging.terraform_logs_sink_writer_identity
   }
@@ -90,10 +90,10 @@ output "terraform_logs_sink" {
 output "logging_sinks_summary" {
   description = "Summary of all logging sinks"
   value = {
-    terraform_logs_sink_id     = module.logging.terraform_logs_sink_id
-    audit_logs_sink_id         = module.logging.terraform_audit_logs_sink_id
-    custom_logs_sink_id        = module.logging.terraform_custom_logs_sink_id
-    all_writer_identities      = module.logging.all_sink_writer_identities
+    terraform_logs_sink_id = module.logging.terraform_logs_sink_id
+    audit_logs_sink_id     = module.logging.terraform_audit_logs_sink_id
+    custom_logs_sink_id    = module.logging.terraform_custom_logs_sink_id
+    all_writer_identities  = module.logging.all_sink_writer_identities
   }
 }
 
@@ -106,10 +106,10 @@ data "google_project" "project" {
 output "bigquery_dataset" {
   description = "Information about the BigQuery data warehouse dataset"
   value = {
-    dataset_id           = module.data_warehouse_dataset.dataset_id
-    dataset_url          = module.data_warehouse_dataset.dataset_url
-    creation_time        = module.data_warehouse_dataset.creation_time
-    last_modified_time   = module.data_warehouse_dataset.last_modified_time
+    dataset_id         = module.data_warehouse_dataset.dataset_id
+    dataset_url        = module.data_warehouse_dataset.dataset_url
+    creation_time      = module.data_warehouse_dataset.creation_time
+    last_modified_time = module.data_warehouse_dataset.last_modified_time
   }
 }
 
@@ -157,13 +157,13 @@ output "all_service_accounts" {
 output "infrastructure_summary" {
   description = "Summary of all provisioned infrastructure"
   value = {
-    project_id          = var.project_id
-    region              = var.region
-    bigquery_dataset    = module.data_warehouse_dataset.dataset_id
-    docker_registry     = module.docker_repository.repository_url
-    storage_buckets     = length(module.cloud_storage.api_bucket_names)
-    enabled_apis        = length([for api in google_project_service.apis : api.service])
-    service_account     = module.iam.service_account_email
-    terraform_sa        = module.iam.service_account_emails["terraform"]
+    project_id       = var.project_id
+    region           = var.region
+    bigquery_dataset = module.data_warehouse_dataset.dataset_id
+    docker_registry  = module.docker_repository.repository_url
+    storage_buckets  = length(module.cloud_storage.api_bucket_names)
+    enabled_apis     = length([for api in google_project_service.apis : api.service])
+    service_account  = module.iam.service_account_email
+    terraform_sa     = module.iam.service_account_emails["terraform"]
   }
 }
