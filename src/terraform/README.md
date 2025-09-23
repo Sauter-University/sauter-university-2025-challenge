@@ -6,12 +6,13 @@ This Terraform configuration sets up the initial Google Cloud Platform (GCP) inf
 
 The infrastructure consists of:
 - **Main Configuration**: Core GCP project setup and API enablement
+- **IAM Module**: Service accounts and role assignments with security best practices
 - **Budget Module**: Billing budgets and cost alerts
 - **Monitoring Module**: Notification channels and alert policies
 - **Cloud Storage Module**: Google Cloud Storage buckets for data management
 - **BigQuery Module**: Data warehouse dataset for analytics and reporting
 - **Artifact Registry Module**: Docker container registry for application images
-- **Logging Module**: Cloud Logging configuration (currently disabled due to permissions)
+- **Logging Module**: Cloud Logging configuration with log sinks
 
 ## 📁 Project Structure
 
@@ -22,6 +23,10 @@ src/terraform/
 ├── outputs.tf           # Output values
 ├── README.md           # This file
 └── modules/
+    ├── iam/            # IAM service accounts and roles module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
     ├── budget/         # Budget and billing alerts module
     │   ├── main.tf
     │   ├── variables.tf
@@ -43,7 +48,7 @@ src/terraform/
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    └── logging/        # Cloud Logging configuration (disabled)
+    └── logging/        # Cloud Logging configuration
         ├── main.tf
         ├── variables.tf
         └── outputs.tf
@@ -145,6 +150,137 @@ The configuration automatically enables these APIs:
 - `logging.googleapis.com` - Cloud Logging
 - `monitoring.googleapis.com` - Cloud Monitoring
 - `storage.googleapis.com` - Cloud Storage
+
+## 🔐 Identity and Access Management (IAM)
+
+### Service Accounts
+
+The infrastructure creates and manages service accounts following the principle of least privilege. Each service account is granted only the minimum permissions required for its intended purpose.
+
+#### 1. Cloud Run API Service Account
+- **Account ID**: `cloud-run-api-sa`
+- **Display Name**: Cloud Run API Service Account
+- **Description**: Service account for Cloud Run API with minimum required permissions
+- **Email**: `cloud-run-api-sa@sauter-university-472416.iam.gserviceaccount.com`
+
+**Assigned IAM Roles**:
+- `roles/bigquery.dataViewer` - Read access to BigQuery datasets and tables
+- `roles/bigquery.jobUser` - Permission to run BigQuery jobs and queries
+- `roles/storage.objectViewer` - Read access to Cloud Storage objects
+
+**Use Case**: This service account is designed for the Cloud Run API application to access data resources safely with read-only permissions.
+
+#### 2. Terraform Service Account
+- **Account ID**: `terraform-sa`
+- **Display Name**: Terraform Service Account
+- **Description**: Service account for Terraform infrastructure management operations
+- **Email**: `terraform-sa@sauter-university-472416.iam.gserviceaccount.com`
+
+**Assigned IAM Roles**:
+- `roles/compute.admin` - Full access to Compute Engine resources
+- `roles/storage.admin` - Full access to Cloud Storage buckets and objects
+- `roles/bigquery.admin` - Full access to BigQuery datasets, tables, and jobs
+- `roles/artifactregistry.admin` - Full access to Artifact Registry repositories
+- `roles/iam.serviceAccountAdmin` - Create and manage service accounts
+- `roles/iam.serviceAccountUser` - Impersonate and use service accounts
+- `roles/logging.admin` - Full access to Cloud Logging resources
+- `roles/monitoring.admin` - Full access to Cloud Monitoring resources
+- `roles/resourcemanager.projectIamAdmin` - Manage project-level IAM policies
+- `roles/serviceusage.serviceUsageAdmin` - Enable and disable Google Cloud APIs
+
+**Use Case**: This service account is designed for Terraform to manage the complete infrastructure lifecycle with administrative privileges.
+
+### IAM Configuration
+
+The IAM module uses a flexible configuration approach that allows easy addition of new service accounts:
+
+```hcl
+module "iam" {
+  source = "./modules/iam"
+  
+  project_id = var.project_id
+  
+  service_accounts = {
+    cloud_run_api = {
+      account_id   = "cloud-run-api-sa"
+      display_name = "Cloud Run API Service Account"
+      description  = "Service account for Cloud Run API with minimum required permissions"
+      roles = [
+        "roles/bigquery.dataViewer",
+        "roles/bigquery.jobUser",
+        "roles/storage.objectViewer"
+      ]
+    }
+    terraform = {
+      account_id   = "terraform-sa"
+      display_name = "Terraform Service Account"
+      description  = "Service account for Terraform infrastructure management operations"
+      roles = [
+        "roles/compute.admin",
+        "roles/storage.admin",
+        "roles/bigquery.admin",
+        "roles/artifactregistry.admin",
+        "roles/iam.serviceAccountAdmin",
+        "roles/iam.serviceAccountUser",
+        "roles/logging.admin",
+        "roles/monitoring.admin",
+        "roles/resourcemanager.projectIamAdmin",
+        "roles/serviceusage.serviceUsageAdmin"
+      ]
+    }
+  }
+}
+```
+
+### Security Best Practices
+
+1. **Principle of Least Privilege**: Each service account has only the minimum permissions required
+2. **Separation of Concerns**: Different service accounts for different purposes (API access vs infrastructure management)
+3. **Role-Based Access Control**: Using predefined Google Cloud IAM roles rather than custom roles where possible
+4. **Resource-Level Security**: Permissions granted at the appropriate resource level
+
+### Service Account Outputs
+
+The IAM module provides comprehensive outputs for integration with other infrastructure components:
+
+```bash
+# View all service account information
+terraform output service_accounts_info
+
+# Get specific service account email
+terraform output -json service_account_emails | jq -r '.cloud_run_api'
+
+# Get all service account emails
+terraform output service_account_emails
+```
+
+### Adding New Service Accounts
+
+To add a new service account, simply extend the `service_accounts` map in the main configuration:
+
+```hcl
+service_accounts = {
+  # Existing service accounts...
+  
+  new_service = {
+    account_id   = "new-service-sa"
+    display_name = "New Service Account"
+    description  = "Description of the new service account"
+    roles = [
+      "roles/specific.role1",
+      "roles/specific.role2"
+    ]
+  }
+}
+```
+
+### IAM Binding Management
+
+The module automatically creates IAM bindings for all specified roles using a dynamic approach that:
+- Creates unique combinations of service accounts and roles
+- Manages dependencies properly
+- Allows for easy role additions and removals
+- Maintains consistent naming conventions
 
 ## 💰 Budget & Alerts
 
@@ -430,6 +566,9 @@ After successful deployment, the following outputs are available:
 | `notification_channels` | List of notification channel IDs |
 | `bigquery_dataset` | BigQuery dataset information (ID, URL, creation time) |
 | `artifact_registry_repository` | Artifact Registry repository information (ID, name, URL) |
+| `service_account_emails` | Map of all service account emails |
+| `service_account_names` | Map of all service account names |
+| `service_accounts_info` | Complete service accounts information |
 | `infrastructure_summary` | Summary of all provisioned infrastructure |
 | `storage_buckets_summary` | Summary of all Cloud Storage buckets |
 | `enabled_apis` | List of all enabled Google Cloud APIs |
@@ -445,6 +584,14 @@ terraform output artifact_registry_repository
 
 # Get repository URL for Docker commands
 terraform output -json artifact_registry_repository | jq -r '.repository_url'
+
+# Get service account information
+terraform output service_account_emails
+terraform output service_accounts_info
+
+# Get specific service account email for use in configurations
+terraform output -json service_account_emails | jq -r '.cloud_run_api'
+terraform output -json service_account_emails | jq -r '.terraform'
 ```
 
 ## 🔍 Troubleshooting
@@ -471,11 +618,16 @@ terraform output -json artifact_registry_repository | jq -r '.repository_url'
 
 ### Required IAM Permissions
 
-Minimum required roles:
-- `roles/billing.admin` - For budget creation
-- `roles/monitoring.admin` - For alert policies
-- `roles/serviceusage.serviceUsageAdmin` - For API management
-- `roles/resourcemanager.projectIamAdmin` - For project-level changes
+Minimum required roles for deploying this infrastructure:
+- `roles/billing.admin` - For budget creation and billing account management
+- `roles/monitoring.admin` - For alert policies and notification channels
+- `roles/serviceusage.serviceUsageAdmin` - For API management and enablement
+- `roles/resourcemanager.projectIamAdmin` - For project-level IAM changes
+- `roles/iam.serviceAccountAdmin` - For creating and managing service accounts
+- `roles/storage.admin` - For creating and managing Cloud Storage buckets
+- `roles/bigquery.admin` - For creating and managing BigQuery datasets
+- `roles/artifactregistry.admin` - For creating and managing Artifact Registry repositories
+- `roles/logging.admin` - For creating and managing logging sinks
 
 ## 📚 Additional Resources
 
