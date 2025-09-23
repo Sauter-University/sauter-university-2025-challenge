@@ -7,8 +7,11 @@ This Terraform configuration sets up the initial Google Cloud Platform (GCP) inf
 The infrastructure consists of:
 - **Main Configuration**: Core GCP project setup and API enablement
 - **IAM Module**: Service accounts and role assignments with security best practices
-- **Budgetgcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
-```
+- **Budget Module**: Billing budgets and cost alerts (using native GCP notifications)
+- **Cloud Storage Module**: Google Cloud Storage buckets for data management
+- **BigQuery Module**: Data warehouse dataset for analytics and reporting
+- **Artifact Registry Module**: Docker container registry for application images
+- **Cloud Run Module**: Serverless container platform for hosting Python API
 
 ## ☁️ Cloud Run Platform (Python API Hosting)
 
@@ -224,19 +227,13 @@ module "cloud_run_api" {
 - Error tracking and alerting
 - Performance monitoring
 
-##### 🚨 **Alerting Integration**
-Cloud Run metrics integrate with the monitoring module for:
-- High error rate alerts
-- Latency threshold alerts
-- Instance scaling alerts
-- Resource utilization monitoring
-
-## 🔧 Maintenanceule**: Billing budgets and cost alerts
-- **Monitoring Module**: Notification channels and alert policies
-- **Cloud Storage Module**: Google Cloud Storage buckets for data management
-- **BigQuery Module**: Data warehouse dataset for analytics and reporting
-- **Artifact Registry Module**: Docker container registry for application images
-- **Cloud Run Module**: Serverless container platform for hosting Python API
+##### 🚨 **Native Monitoring Integration**
+Cloud Run provides native integration with Google Cloud Operations for:
+- Automatic metrics collection and dashboards
+- Built-in error rate monitoring
+- Latency and performance tracking
+- Auto-scaling based on traffic patterns
+- Resource utilization monitoring via Cloud Monitoring console
 
 ## 📁 Project Structure
 
@@ -252,10 +249,6 @@ src/terraform/
     │   ├── variables.tf
     │   └── outputs.tf
     ├── budget/         # Budget and billing alerts module
-    │   ├── main.tf
-    │   ├── variables.tf
-    │   └── outputs.tf
-    ├── monitoring/     # Monitoring and notifications module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
@@ -373,7 +366,6 @@ The configuration automatically enables these APIs:
 - `cloudresourcemanager.googleapis.com` - Resource management
 - `compute.googleapis.com` - Compute Engine
 - `iam.googleapis.com` - Identity and Access Management
-- `monitoring.googleapis.com` - Cloud Monitoring
 - `run.googleapis.com` - Cloud Run serverless platform
 - `storage.googleapis.com` - Cloud Storage
 
@@ -410,7 +402,6 @@ The infrastructure creates and manages service accounts following the principle 
 - `roles/iam.serviceAccountAdmin` - Create and manage service accounts
 - `roles/iam.serviceAccountUser` - Impersonate and use service accounts
 - `roles/logging.admin` - Full access to Cloud Logging resources
-- `roles/monitoring.admin` - Full access to Cloud Monitoring resources
 - `roles/resourcemanager.projectIamAdmin` - Manage project-level IAM policies
 - `roles/serviceusage.serviceUsageAdmin` - Enable and disable Google Cloud APIs
 
@@ -449,7 +440,6 @@ module "iam" {
         "roles/iam.serviceAccountAdmin",
         "roles/iam.serviceAccountUser",
         "roles/logging.admin",
-        "roles/monitoring.admin",
         "roles/resourcemanager.projectIamAdmin",
         "roles/serviceusage.serviceUsageAdmin"
       ]
@@ -525,20 +515,16 @@ Budget alerts are triggered at:
 - Email notifications to specified address
 - Configurable additional channels (Slack, PagerDuty, etc.)
 
-## 📈 Monitoring & Alerts
+## 📈 Native GCP Monitoring
 
-### Available Alert Policies
-The monitoring module supports:
-- **Budget Alerts**: ✅ Enabled by default
+The infrastructure leverages Google Cloud's native monitoring capabilities:
 
-### Enabling Additional Alerts
-```hcl
-module "monitoring" {
-  # ... other configuration
-  enable_compute_alerts = true
-  enable_storage_alerts = true
-}
-```
+- **Budget Alerts**: Managed through Cloud Billing console
+- **Cloud Run Monitoring**: Automatic metrics via Cloud Operations
+- **Resource Monitoring**: Built-in dashboards in Cloud Console
+- **Performance Insights**: Native APM through Cloud Trace and Profiler
+
+All monitoring is handled by Google Cloud Platform's native services, eliminating the need for custom alert policies and notification channels.
 
 ## 🗄️ Cloud Storage Configuration
 
@@ -546,12 +532,7 @@ module "monitoring" {
 
 The infrastructure automatically creates the following Google Cloud Storage buckets:
 
-#### 1. Terraform Logs Bucket
-- **Name**: `{project_id}-terraform-logs`
-- **Purpose**: Store terraform operation logs and infrastructure audit trails
-- **URL**: `gs://{project_id}-terraform-logs`
-
-#### 2. API Data Buckets (using for_each)
+#### API Data Buckets
 - **Raw Data**: `{project_id}-api-raw-data` - Stores raw, unprocessed API data
 - **Treated Data**: `{project_id}-api-treated-data` - Stores processed and cleaned API data  
 - **ML Data**: `{project_id}-api-ml-data` - Stores ML training data, models, and ML-related artifacts
@@ -854,7 +835,6 @@ terraform output -json service_account_emails | jq -r '.terraform'
 
 Minimum required roles for deploying this infrastructure:
 - `roles/billing.admin` - For budget creation and billing account management
-- `roles/monitoring.admin` - For alert policies and notification channels
 - `roles/serviceusage.serviceUsageAdmin` - For API management and enablement
 - `roles/resourcemanager.projectIamAdmin` - For project-level IAM changes
 - `roles/iam.serviceAccountAdmin` - For creating and managing service accounts

@@ -38,16 +38,6 @@ output "budget_alert_email" {
   value       = var.budget_alert_email
 }
 
-output "monitoring_notification_channel" {
-  description = "The monitoring notification channel information"
-  value       = module.monitoring.notification_channels_summary
-}
-
-output "monitoring_dashboard_url" {
-  description = "URL to the monitoring dashboard"
-  value       = module.monitoring.dashboard_url
-}
-
 output "enabled_apis" {
   description = "List of enabled APIs"
   value       = [for api in google_project_service.apis : api.service]
