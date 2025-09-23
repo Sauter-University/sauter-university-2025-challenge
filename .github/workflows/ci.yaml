@@ -41,4 +41,7 @@ jobs:
           uv pip install --system -r src/api/requirements.txt pytest pytest-cov
 
       - name: "Run API Tests with Coverage"
-        run: pytest src/api/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
+        
+        run: 
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest src/api/tests/ --cov=src/api --cov-report=term-missing --cov-fail-under=85
