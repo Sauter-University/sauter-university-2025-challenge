@@ -31,7 +31,7 @@ jobs:
       - name: Build e Push da Imagem Docker
         run: |
           docker build -t ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest \
-            -f src/api/Dockerfile ./src/api
+            -f src/api/Dockerfile ./src
           docker push ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest
 
       - name: Deploy da nova imagem no Cloud Run
