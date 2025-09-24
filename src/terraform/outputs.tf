@@ -40,12 +40,10 @@ output "budget_alert_email" {
 
 output "monitoring_notification_channel" {
   description = "The monitoring notification channel information"
-  value       = module.monitoring.notification_channels_summary
-}
-
-output "monitoring_dashboard_url" {
-  description = "URL to the monitoring dashboard"
-  value       = module.monitoring.dashboard_url
+  value = {
+    email_channel_name = module.monitoring.email_notification_channel_name
+    email_channel_id   = module.monitoring.email_notification_channel_id
+  }
 }
 
 output "enabled_apis" {
@@ -54,8 +52,18 @@ output "enabled_apis" {
 }
 
 # Cloud Storage outputs
+output "sauter_university_bucket" {
+  description = "Information about the Sauter University bucket"
+  value = {
+    name      = module.cloud_storage.bucket_name
+    url       = module.cloud_storage.bucket_url
+    self_link = module.cloud_storage.bucket_self_link
+  }
+}
+
+# Backwards compatibility outputs
 output "terraform_logs_bucket" {
-  description = "Information about the terraform logs bucket"
+  description = "Information about the bucket (backwards compatibility)"
   value = {
     name      = module.cloud_storage.terraform_logs_bucket_name
     url       = module.cloud_storage.terraform_logs_bucket_url
@@ -64,7 +72,7 @@ output "terraform_logs_bucket" {
 }
 
 output "api_buckets" {
-  description = "Information about the API buckets"
+  description = "Information about the bucket (backwards compatibility)"
   value = {
     names      = module.cloud_storage.api_bucket_names
     urls       = module.cloud_storage.api_bucket_urls
@@ -75,26 +83,6 @@ output "api_buckets" {
 output "storage_buckets_summary" {
   description = "Summary of all created storage buckets"
   value       = module.cloud_storage.bucket_summary
-}
-
-# Logging outputs
-output "terraform_logs_sink" {
-  description = "Information about the terraform logs sink"
-  value = {
-    id              = module.logging.terraform_logs_sink_id
-    name            = module.logging.terraform_logs_sink_name
-    writer_identity = module.logging.terraform_logs_sink_writer_identity
-  }
-}
-
-output "logging_sinks_summary" {
-  description = "Summary of all logging sinks"
-  value = {
-    terraform_logs_sink_id = module.logging.terraform_logs_sink_id
-    audit_logs_sink_id     = module.logging.terraform_audit_logs_sink_id
-    custom_logs_sink_id    = module.logging.terraform_custom_logs_sink_id
-    all_writer_identities  = module.logging.all_sink_writer_identities
-  }
 }
 
 # Data source to get project info for outputs
@@ -177,7 +165,7 @@ output "infrastructure_summary" {
     region           = var.region
     bigquery_dataset = module.data_warehouse_dataset.dataset_id
     docker_registry  = module.docker_repository.repository_url
-    storage_buckets  = length(module.cloud_storage.api_bucket_names)
+    storage_buckets  = 1
     enabled_apis     = length([for api in google_project_service.apis : api.service])
     service_account  = module.iam.service_account_email
     terraform_sa     = module.iam.service_account_emails["terraform"]
