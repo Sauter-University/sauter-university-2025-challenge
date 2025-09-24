@@ -192,7 +192,7 @@ module "cloud_run_api" {
 module "wif" {
   source = "./modules/wif"
 
-  project_id = var.project_id
+  project_id           = var.project_id
   service_account_name = module.iam.service_account_names["ci_cd"]
   # Get the full name of the SA 'ci_cd' that the 'iam' module just created
   github_repository = var.github_repository
