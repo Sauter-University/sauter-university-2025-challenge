@@ -40,12 +40,10 @@ output "budget_alert_email" {
 
 output "monitoring_notification_channel" {
   description = "The monitoring notification channel information"
-  value       = module.monitoring.notification_channels_summary
-}
-
-output "monitoring_dashboard_url" {
-  description = "URL to the monitoring dashboard"
-  value       = module.monitoring.dashboard_url
+  value = {
+    email_channel_name = module.monitoring.email_notification_channel_name
+    email_channel_id   = module.monitoring.email_notification_channel_id
+  }
 }
 
 output "enabled_apis" {
@@ -85,26 +83,6 @@ output "api_buckets" {
 output "storage_buckets_summary" {
   description = "Summary of all created storage buckets"
   value       = module.cloud_storage.bucket_summary
-}
-
-# Logging outputs
-output "terraform_logs_sink" {
-  description = "Information about the terraform logs sink"
-  value = {
-    id              = module.logging.terraform_logs_sink_id
-    name            = module.logging.terraform_logs_sink_name
-    writer_identity = module.logging.terraform_logs_sink_writer_identity
-  }
-}
-
-output "logging_sinks_summary" {
-  description = "Summary of all logging sinks"
-  value = {
-    terraform_logs_sink_id = module.logging.terraform_logs_sink_id
-    audit_logs_sink_id     = module.logging.terraform_audit_logs_sink_id
-    custom_logs_sink_id    = module.logging.terraform_custom_logs_sink_id
-    all_writer_identities  = module.logging.all_sink_writer_identities
-  }
 }
 
 # Data source to get project info for outputs

@@ -55,23 +55,6 @@ module "cloud_storage" {
   ]
 }
 
-# Configure logging to Sauter University bucket
-# This module creates logging sinks to export logs to the GCS bucket
-module "logging" {
-  source = "./modules/logging"
-
-  project_id                 = var.project_id
-  terraform_logs_bucket_name = "bucket-sauter-university"
-  log_sink_name              = "sauter-university-logs-sink"
-  unique_writer_identity     = true
-
-  depends_on = [
-    google_project_service.apis,
-    module.cloud_storage, # Bucket must exist first
-    module.iam            # IAM permissions must be set first
-  ]
-}
-
 # Create monitoring infrastructure
 module "monitoring" {
   source = "./modules/monitoring"
@@ -79,9 +62,6 @@ module "monitoring" {
   project_id                = var.project_id
   notification_email        = var.budget_alert_email
   notification_display_name = "Sauter University Budget Alerts"
-  enable_budget_alerts      = true
-  enable_compute_alerts     = false
-  enable_storage_alerts     = false
 
   depends_on = [
     google_project_service.apis
@@ -96,7 +76,7 @@ module "dev_budget" {
   billing_account_id    = var.billing_account_id
   budget_amount         = var.dev_budget_amount
   budget_display_name   = var.budget_display_name
-  notification_channels = module.monitoring.email_notification_channel_name != null ? [module.monitoring.email_notification_channel_name] : []
+  notification_channels = [module.monitoring.email_notification_channel_name]
   alert_thresholds      = var.budget_alert_thresholds
   enable_notifications  = true
 
