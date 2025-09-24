@@ -1,4 +1,3 @@
-# app/repositories/gcs_repository.py
 import pandas as pd
 from datetime import date
 from typing import List
@@ -37,16 +36,32 @@ class GCSRepository:
         """
         return f"basin_data/basin_data_{year}.parquet"
 
-    def save_for_year(self, df: pd.DataFrame, year: int):
+    def _get_blob_name_for_ingestion(self, ingestion_date: date, year: int) -> str:
         """
-        Saves a DataFrame as a Parquet file to GCS for a specific year.
-        The data is written to a buffer in memory before being uploaded.
+        Constructs the file path (blob name) for a specific ingestion date and year.
+        
+        Args:
+            ingestion_date (date): The date when the data was ingested.
+            year (int): The year of the data.
 
+        Returns:
+            str: The full path of the object in the GCS bucket.
+        """
+        date_folder = ingestion_date.strftime('%Y-%m-%d')
+        return f"basin_data/{date_folder}/basin_data_{year}.parquet"
+
+
+
+    def save_dataframe_for_ingestion(self, df: pd.DataFrame, year: int, ingestion_date: date):
+        """
+        Saves a DataFrame as a Parquet file to GCS organized by ingestion date.
+        
         Args:
             df (pd.DataFrame): The DataFrame to save.
             year (int): The year the data corresponds to.
+            ingestion_date (date): The date when the data was ingested.
         """
-        blob_name = self._get_blob_name_for_year(year)
+        blob_name = self._get_blob_name_for_ingestion(ingestion_date, year)
         blob = self.bucket.blob(blob_name)
 
         # Convert DataFrame to Parquet format in an in-memory buffer
@@ -56,7 +71,7 @@ class GCSRepository:
 
         # Upload the buffer content to the GCS blob
         blob.upload_from_file(buffer, content_type="application/octet-stream")
-        print(f"Data for year {year} saved to gs://{self.bucket_name}/{blob_name}")
+        print(f"Data for year {year} ingested on {ingestion_date} saved to gs://{self.bucket_name}/{blob_name}")
 
     def find_by_date_range(self, start_date: date, end_date: date) -> pd.DataFrame:
         """
