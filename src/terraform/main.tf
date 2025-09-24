@@ -41,29 +41,28 @@ resource "google_project_service" "apis" {
   disable_on_destroy         = false
 }
 
-# Create cloud storage buckets
+# Create cloud storage bucket
 module "cloud_storage" {
   source = "./modules/cloud_storage"
 
-  project_id                 = var.project_id
-  region                     = var.region
-  terraform_logs_bucket_name = "terraform-logs"
-  force_destroy              = var.enable_bucket_force_destroy
-  enable_versioning          = true
+  project_id        = var.project_id
+  region           = var.region
+  force_destroy    = var.enable_bucket_force_destroy
+  enable_versioning = true
 
   depends_on = [
     google_project_service.apis
   ]
 }
 
-# Configure logging to terraform_logs bucket
+# Configure logging to Sauter University bucket
 # This module creates logging sinks to export logs to the GCS bucket
 module "logging" {
   source = "./modules/logging"
 
   project_id                 = var.project_id
-  terraform_logs_bucket_name = "terraform-logs"
-  log_sink_name              = "terraform-logs-sink"
+  terraform_logs_bucket_name = "bucket-sauter-university"
+  log_sink_name              = "sauter-university-logs-sink"
   unique_writer_identity     = true
 
   depends_on = [

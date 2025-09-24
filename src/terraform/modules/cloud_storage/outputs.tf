@@ -1,64 +1,68 @@
-# Terraform logs bucket outputs
+# Sauter University bucket outputs
+output "bucket_name" {
+  description = "Name of the Sauter University bucket"
+  value       = google_storage_bucket.sauter_university_bucket.name
+}
+
+output "bucket_url" {
+  description = "URL of the Sauter University bucket"
+  value       = google_storage_bucket.sauter_university_bucket.url
+}
+
+output "bucket_self_link" {
+  description = "Self link of the Sauter University bucket"
+  value       = google_storage_bucket.sauter_university_bucket.self_link
+}
+
+# For backwards compatibility (these will be deprecated)
 output "terraform_logs_bucket_name" {
-  description = "Name of the terraform logs bucket"
-  value       = google_storage_bucket.terraform_logs.name
+  description = "Name of the bucket (backwards compatibility)"
+  value       = google_storage_bucket.sauter_university_bucket.name
 }
 
 output "terraform_logs_bucket_url" {
-  description = "URL of the terraform logs bucket"
-  value       = google_storage_bucket.terraform_logs.url
+  description = "URL of the bucket (backwards compatibility)"
+  value       = google_storage_bucket.sauter_university_bucket.url
 }
 
 output "terraform_logs_bucket_self_link" {
-  description = "Self link of the terraform logs bucket"
-  value       = google_storage_bucket.terraform_logs.self_link
+  description = "Self link of the bucket (backwards compatibility)"
+  value       = google_storage_bucket.sauter_university_bucket.self_link
 }
 
-# API buckets outputs
 output "api_bucket_names" {
-  description = "Map of API bucket names"
+  description = "Map of bucket names (backwards compatibility)"
   value = {
-    for k, bucket in google_storage_bucket.api_buckets : k => bucket.name
+    main = google_storage_bucket.sauter_university_bucket.name
   }
 }
 
 output "api_bucket_urls" {
-  description = "Map of API bucket URLs"
+  description = "Map of bucket URLs (backwards compatibility)"
   value = {
-    for k, bucket in google_storage_bucket.api_buckets : k => bucket.url
+    main = google_storage_bucket.sauter_university_bucket.url
   }
 }
 
 output "api_bucket_self_links" {
-  description = "Map of API bucket self links"
+  description = "Map of bucket self links (backwards compatibility)"
   value = {
-    for k, bucket in google_storage_bucket.api_buckets : k => bucket.self_link
+    main = google_storage_bucket.sauter_university_bucket.self_link
   }
 }
 
-# All buckets combined
 output "all_bucket_names" {
   description = "List of all bucket names created by this module"
-  value = concat(
-    [google_storage_bucket.terraform_logs.name],
-    [for bucket in google_storage_bucket.api_buckets : bucket.name]
-  )
+  value = [google_storage_bucket.sauter_university_bucket.name]
 }
 
 output "bucket_summary" {
-  description = "Summary of all created buckets"
+  description = "Summary of the created bucket"
   value = {
-    terraform_logs = {
-      name = google_storage_bucket.terraform_logs.name
-      url  = google_storage_bucket.terraform_logs.url
-      type = "terraform-logs"
-    }
-    api_buckets = {
-      for k, bucket in google_storage_bucket.api_buckets : k => {
-        name = bucket.name
-        url  = bucket.url
-        type = "api-${k}"
-      }
+    main = {
+      name = google_storage_bucket.sauter_university_bucket.name
+      url  = google_storage_bucket.sauter_university_bucket.url
+      type = "sauter-university"
     }
   }
 }

@@ -54,8 +54,18 @@ output "enabled_apis" {
 }
 
 # Cloud Storage outputs
+output "sauter_university_bucket" {
+  description = "Information about the Sauter University bucket"
+  value = {
+    name      = module.cloud_storage.bucket_name
+    url       = module.cloud_storage.bucket_url
+    self_link = module.cloud_storage.bucket_self_link
+  }
+}
+
+# Backwards compatibility outputs
 output "terraform_logs_bucket" {
-  description = "Information about the terraform logs bucket"
+  description = "Information about the bucket (backwards compatibility)"
   value = {
     name      = module.cloud_storage.terraform_logs_bucket_name
     url       = module.cloud_storage.terraform_logs_bucket_url
@@ -64,7 +74,7 @@ output "terraform_logs_bucket" {
 }
 
 output "api_buckets" {
-  description = "Information about the API buckets"
+  description = "Information about the bucket (backwards compatibility)"
   value = {
     names      = module.cloud_storage.api_bucket_names
     urls       = module.cloud_storage.api_bucket_urls
@@ -177,7 +187,7 @@ output "infrastructure_summary" {
     region           = var.region
     bigquery_dataset = module.data_warehouse_dataset.dataset_id
     docker_registry  = module.docker_repository.repository_url
-    storage_buckets  = length(module.cloud_storage.api_bucket_names)
+    storage_buckets  = 1
     enabled_apis     = length([for api in google_project_service.apis : api.service])
     service_account  = module.iam.service_account_email
     terraform_sa     = module.iam.service_account_emails["terraform"]

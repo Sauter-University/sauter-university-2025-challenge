@@ -7,7 +7,28 @@ This Terraform configuration sets up the initial Google Cloud Platform (GCP) inf
 The infrastructure consists of:
 - **Main Configuration**: Core GCP project setup and API enablement
 - **IAM Module**: Service accounts and role assignments with security best practices
-- **Budgetgcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
+- **Budget Module**: Billing budgets and cost alerts
+- **Monitoring Module**: Notification channels and alert policies
+- **Cloud Storage Module**: Single unified bucket (`bucket-sauter-university`) for all data management
+- **BigQuery Module**: Data warehouse dataset for analytics and reporting
+- **Artifact Registry Module**: Docker container registry for application images
+- **Cloud Run Module**: Serverless container platform for hosting Python API
+- **Logging Module**: Cloud Logging configuration with automatic export to the unified bucket
+
+### 🎯 Simplified Design Philosophy
+
+This infrastructure follows a **unified storage approach** with a single bucket for all data types:
+- **Simplified Management**: One bucket to rule them all - easier permissions, monitoring, and cost tracking
+- **Organized Structure**: Data organization through folder hierarchy rather than separate buckets
+- **Centralized Logging**: All logs exported to the same bucket for unified log management
+- **Cost Efficiency**: Reduced complexity and potential cost savings with simplified bucket structure
+- **Easier Backup**: Single point of backup and disaster recovery
+
+### 📋 Quick Reference Commands
+
+```bash
+# List container images in Artifact Registry
+gcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
 ```
 
 ## ☁️ Cloud Run Platform (Python API Hosting)
@@ -160,15 +181,30 @@ results = client.query(query)
 ```
 
 ##### 🗄️ **Cloud Storage Integration**
-Access to Cloud Storage buckets for data files:
+Access to the unified Cloud Storage bucket for all data files:
 ```python
 # Example Python code for Cloud Storage access
 from google.cloud import storage
 
 client = storage.Client()
-bucket = client.bucket('sauter-university-472416-api-raw-data')
-blob = bucket.blob('reservoir_data.json')
-data = blob.download_as_text()
+bucket = client.bucket('bucket-sauter-university')
+
+# Access different types of data with organized paths
+# Raw data
+blob = bucket.blob('raw-data/reservoir_data.json')
+raw_data = blob.download_as_text()
+
+# Processed data
+blob = bucket.blob('processed-data/cleaned_reservoir_data.json')
+processed_data = blob.download_as_text()
+
+# ML models
+blob = bucket.blob('ml-models/reservoir_model.pkl')
+model_data = blob.download_as_bytes()
+
+# Logs
+blob = bucket.blob('logs/application.log')
+log_data = blob.download_as_text()
 ```
 
 #### Terraform Configuration Example
@@ -233,7 +269,7 @@ Cloud Run metrics integrate with the monitoring module for:
 
 ## 🔧 Maintenanceule**: Billing budgets and cost alerts
 - **Monitoring Module**: Notification channels and alert policies
-- **Cloud Storage Module**: Google Cloud Storage buckets for data management
+- **Cloud Storage Module**: Single unified Google Cloud Storage bucket for all data management
 - **BigQuery Module**: Data warehouse dataset for analytics and reporting
 - **Artifact Registry Module**: Docker container registry for application images
 - **Cloud Run Module**: Serverless container platform for hosting Python API
@@ -347,7 +383,7 @@ src/terraform/
 | `artifact_registry_repository_id` | Artifact Registry repository ID | `sauter-university-docker-repo` | No |
 | `cloud_run_service_name` | Cloud Run service name | `sauter-reservoir-api` | No |
 | `container_image_tag` | Container image tag | `latest` | No |
-| `dev_budget_amount` | Budget amount in BRL | `300` | No |
+| `enable_bucket_force_destroy` | Allow bucket deletion with objects | `true` | No |
 
 ### Variable Customization
 
@@ -398,9 +434,9 @@ The infrastructure creates and manages service accounts following the principle 
 **Assigned IAM Roles**:
 - `roles/bigquery.dataViewer` - Read access to BigQuery datasets and tables
 - `roles/bigquery.jobUser` - Permission to run BigQuery jobs and queries
-- `roles/storage.objectViewer` - Read access to Cloud Storage objects
+- `roles/storage.objectViewer` - Read access to the unified Cloud Storage bucket (`bucket-sauter-university`)
 
-**Use Case**: This service account is designed for the Cloud Run API application to access data resources safely with read-only permissions.
+**Use Case**: This service account is designed for the Cloud Run API application to access data resources safely with read-only permissions across the unified storage bucket.
 
 #### 2. Terraform Service Account
 - **Account ID**: `terraform-sa`
@@ -410,7 +446,7 @@ The infrastructure creates and manages service accounts following the principle 
 
 **Assigned IAM Roles**:
 - `roles/compute.admin` - Full access to Compute Engine resources
-- `roles/storage.admin` - Full access to Cloud Storage buckets and objects
+- `roles/storage.admin` - Full access to the unified Cloud Storage bucket and all objects
 - `roles/bigquery.admin` - Full access to BigQuery datasets, tables, and jobs
 - `roles/artifactregistry.admin` - Full access to Artifact Registry repositories
 - `roles/iam.serviceAccountAdmin` - Create and manage service accounts
@@ -420,7 +456,7 @@ The infrastructure creates and manages service accounts following the principle 
 - `roles/resourcemanager.projectIamAdmin` - Manage project-level IAM policies
 - `roles/serviceusage.serviceUsageAdmin` - Enable and disable Google Cloud APIs
 
-**Use Case**: This service account is designed for Terraform to manage the complete infrastructure lifecycle with administrative privileges.
+**Use Case**: This service account is designed for Terraform to manage the complete infrastructure lifecycle with administrative privileges, including full control over the unified storage bucket.
 
 ### IAM Configuration
 
@@ -548,37 +584,72 @@ module "monitoring" {
 
 ## 🗄️ Cloud Storage Configuration
 
-### Created Buckets
+### Created Bucket
 
-The infrastructure automatically creates the following Google Cloud Storage buckets:
+The infrastructure creates a single, unified Google Cloud Storage bucket for all data storage needs:
 
-#### 1. Terraform Logs Bucket
-- **Name**: `{project_id}-terraform-logs`
-- **Purpose**: Store terraform operation logs and infrastructure audit trails
-- **URL**: `gs://{project_id}-terraform-logs`
-
-#### 2. API Data Buckets (using for_each)
-- **Raw Data**: `{project_id}-api-raw-data` - Stores raw, unprocessed API data
-- **Treated Data**: `{project_id}-api-treated-data` - Stores processed and cleaned API data  
-- **ML Data**: `{project_id}-api-ml-data` - Stores ML training data, models, and ML-related artifacts
+#### Sauter University Bucket
+- **Name**: `bucket-sauter-university`
+- **Purpose**: Unified storage for all university data including logs, raw data, processed data, and ML artifacts
+- **URL**: `gs://bucket-sauter-university`
 
 ### Storage Configuration
 - **Location**: `us-central1` (configurable via `region` variable)
 - **Storage Class**: `STANDARD`
-- **Versioning**: Enabled for data protection
-- **Labels**: Applied for proper organization and cost tracking
+- **Versioning**: Enabled for data protection and version history
+- **Force Destroy**: Enabled for easier management
+- **Labels**: 
+  - `environment: production`
+  - `purpose: general` 
+  - `managed_by: terraform`
+
+### Bucket Features
+- **Versioning Enabled**: Automatic versioning for all objects
+- **Public Access Prevention**: Enforced for security
+- **Bucket Policy Only**: Enabled for consistent access control
+- **Logging Integration**: All Cloud Logging sinks export to this bucket
 
 ### Usage Examples
 ```bash
-# List all buckets
-gsutil ls
+# List bucket contents
+gsutil ls gs://bucket-sauter-university/
 
-# Upload to raw data bucket
-gsutil cp data.json gs://sauter-university-472416-api-raw-data/
+# Upload data files
+gsutil cp data.json gs://bucket-sauter-university/raw-data/
+gsutil cp processed_data.json gs://bucket-sauter-university/processed-data/
 
-# Copy between buckets (raw → treated)
-gsutil cp gs://sauter-university-472416-api-raw-data/data.json \
-         gs://sauter-university-472416-api-treated-data/processed_data.json
+# Upload ML models and artifacts
+gsutil cp model.pkl gs://bucket-sauter-university/ml-models/
+
+# Create organized folder structure
+gsutil cp -r local_logs/ gs://bucket-sauter-university/logs/
+gsutil cp -r datasets/ gs://bucket-sauter-university/datasets/
+```
+
+### Data Organization Strategy
+
+With a single bucket, organize data using a clear folder structure:
+
+```
+bucket-sauter-university/
+├── logs/                    # Application and infrastructure logs
+│   ├── terraform/
+│   ├── api/
+│   └── audit/
+├── raw-data/               # Unprocessed, original data
+│   ├── reservoirs/
+│   ├── sensors/
+│   └── api-responses/
+├── processed-data/         # Cleaned and transformed data
+│   ├── reservoirs/
+│   └── aggregated/
+├── ml-models/              # Machine learning artifacts
+│   ├── trained-models/
+│   ├── training-data/
+│   └── predictions/
+└── backups/                # Data backups and archives
+    ├── daily/
+    └── weekly/
 ```
 
 ### Detailed Documentation
@@ -801,12 +872,14 @@ After successful deployment, the following outputs are available:
 | `api_service_url` | Cloud Run service URL for the deployed API |
 | `api_service_name` | Cloud Run service name |
 | `api_service_location` | Cloud Run service location/region |
+| `sauter_university_bucket` | Unified bucket information (name, URL, self_link) |
+| `storage_buckets_summary` | Summary of the unified Cloud Storage bucket |
 | `service_account_emails` | Map of all service account emails |
 | `service_account_names` | Map of all service account names |
 | `service_accounts_info` | Complete service accounts information |
 | `infrastructure_summary` | Summary of all provisioned infrastructure |
-| `storage_buckets_summary` | Summary of all Cloud Storage buckets |
 | `enabled_apis` | List of all enabled Google Cloud APIs |
+| `logging_sinks_summary` | Summary of all Cloud Logging sinks |
 
 ### Accessing Output Values
 ```bash
@@ -825,6 +898,13 @@ terraform output api_service_url
 terraform output api_service_name
 terraform output api_service_location
 
+# Get unified bucket information
+terraform output sauter_university_bucket
+terraform output storage_buckets_summary
+
+# Get bucket URL for gsutil commands
+terraform output -json sauter_university_bucket | jq -r '.url'
+
 # Get service account information
 terraform output service_account_emails
 terraform output service_accounts_info
@@ -832,6 +912,9 @@ terraform output service_accounts_info
 # Get specific service account email for use in configurations
 terraform output -json service_account_emails | jq -r '.cloud_run_api'
 terraform output -json service_account_emails | jq -r '.terraform'
+
+# Get logging information
+terraform output logging_sinks_summary
 ```
 
 ## 🔍 Troubleshooting
