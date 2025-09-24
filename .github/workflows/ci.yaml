@@ -1,0 +1,42 @@
+name: CI - Run Tests and Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-quality-checks:
+    name: Run Tests and Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v3
+
+      - name: "Setup Terraform"
+        uses: hashicorp/setup-terraform@v2
+
+      - name: "Terraform Format Check"
+        run: terraform -chdir=./src/terraform fmt -check -recursive
+
+      - name: "Terraform Init"
+        run: terraform -chdir=./src/terraform init -backend=false -input=false
+      
+      - name: "Terraform Validate"
+        run: terraform -chdir=./src/terraform validate
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: "Install UV and Dependencies"
+        run: |
+          pip install uv
+          uv pip install --system -r src/api/requirements.txt pytest pytest-cov httpx
+
+      #- name: "Run API Tests with Coverage"
+      #  env:
+      #    PYTHONPATH: ${{ github.workspace }}
+      #  run: pytest src/api/tests/ --cov=src/api --cov-report=term-missing --cov-fail-under=85

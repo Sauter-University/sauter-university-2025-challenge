@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -38,14 +38,14 @@ resource "google_project_service" "apis" {
   service = each.key
 
   disable_dependent_services = false
-  disable_on_destroy        = false
+  disable_on_destroy         = false
 }
 
 # Create cloud storage buckets
 module "cloud_storage" {
   source = "./modules/cloud_storage"
 
-  project_id                  = var.project_id
+  project_id                 = var.project_id
   region                     = var.region
   terraform_logs_bucket_name = "terraform-logs"
   force_destroy              = var.enable_bucket_force_destroy
@@ -61,14 +61,14 @@ module "cloud_storage" {
 module "logging" {
   source = "./modules/logging"
 
-  project_id                  = var.project_id
+  project_id                 = var.project_id
   terraform_logs_bucket_name = "terraform-logs"
   log_sink_name              = "terraform-logs-sink"
   unique_writer_identity     = true
 
   depends_on = [
     google_project_service.apis,
-    module.cloud_storage,  # Bucket must exist first
+    module.cloud_storage, # Bucket must exist first
     module.iam            # IAM permissions must be set first
   ]
 }
@@ -81,7 +81,7 @@ module "monitoring" {
   notification_email        = var.budget_alert_email
   notification_display_name = "Sauter University Budget Alerts"
   enable_budget_alerts      = true
-  enable_compute_alerts     = false 
+  enable_compute_alerts     = false
   enable_storage_alerts     = false
 
   depends_on = [
@@ -93,13 +93,13 @@ module "monitoring" {
 module "dev_budget" {
   source = "./modules/budget"
 
-  project_id              = var.project_id
-  billing_account_id      = var.billing_account_id
-  budget_amount          = var.dev_budget_amount
-  budget_display_name    = var.budget_display_name
-  notification_channels  = module.monitoring.email_notification_channel_name != null ? [module.monitoring.email_notification_channel_name] : []
-  alert_thresholds       = var.budget_alert_thresholds
-  enable_notifications   = true
+  project_id            = var.project_id
+  billing_account_id    = var.billing_account_id
+  budget_amount         = var.dev_budget_amount
+  budget_display_name   = var.budget_display_name
+  notification_channels = module.monitoring.email_notification_channel_name != null ? [module.monitoring.email_notification_channel_name] : []
+  alert_thresholds      = var.budget_alert_thresholds
+  enable_notifications  = true
 
   depends_on = [
     google_project_service.apis,
@@ -111,13 +111,14 @@ module "dev_budget" {
 module "data_warehouse_dataset" {
   source = "./modules/bigquery"
 
+
   project_id                  = var.project_id
-  dataset_id                 = var.bigquery_dataset_id
-  dataset_friendly_name      = "Sauter University Data Warehouse"
-  description                = "Data warehouse dataset for storing processed university data for analytics and reporting"
-  location                   = var.region == "us-central1" ? "US" : upper(var.region)
-  default_table_expiration_ms = null # No expiration for data warehouse tables
-  delete_contents_on_destroy = var.enable_bucket_force_destroy # Use same setting as buckets for consistency
+  dataset_id                  = var.bigquery_dataset_id
+  dataset_friendly_name       = "Sauter University Data Warehouse"
+  description                 = "Data warehouse dataset for storing processed university data for analytics and reporting"
+  location                    = var.region == "us-central1" ? "US" : upper(var.region)
+  default_table_expiration_ms = null                            # No expiration for data warehouse tables
+  delete_contents_on_destroy  = var.enable_bucket_force_destroy # Use same setting as buckets for consistency
 
   labels = {
     environment = "development"
@@ -158,7 +159,7 @@ module "iam" {
   source = "./modules/iam"
 
   project_id = var.project_id
-  
+
   service_accounts = {
     cloud_run_api = {
       account_id   = "cloud-run-api-sa"

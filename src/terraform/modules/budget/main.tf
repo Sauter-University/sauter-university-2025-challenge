@@ -33,9 +33,9 @@ resource "google_billing_budget" "dev_budget" {
     for_each = var.enable_notifications && length(var.notification_channels) > 0 ? [1] : []
     content {
       monitoring_notification_channels = var.notification_channels
-      
+
       disable_default_iam_recipients = false
-      
+
       schema_version = "1.0"
     }
   }

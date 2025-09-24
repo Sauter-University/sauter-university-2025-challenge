@@ -8,5 +8,5 @@ region     = "us-central1"
 zone       = "us-central1-a"
 
 # Budget Configuration
-dev_budget_amount   = 300
-budget_alert_email  = "sauter-university-472416@googlegroups.com"
+dev_budget_amount  = 300
+budget_alert_email = "sauter-university-472416@googlegroups.com"
