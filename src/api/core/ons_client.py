@@ -2,11 +2,14 @@ from typing import Optional
 import httpx
 import pandas as pd
 from io import StringIO
+from datetime import date
 import logging
 from api.core.exceptions import ONSClientError, ONSResourceNotFoundError, ONSDataProcessingError
 
 ONS_API_URL = "https://dados.ons.org.br/api/3/action/package_show"
 PACKAGE_ID = "a0ec7472-1da3-4bb5-b501-5bfd2fdf26a8"
+
+
 class ONSClient:
     """
     A client responsible for all interactions with the ONS (National System Operator)
@@ -42,13 +45,22 @@ class ONSClient:
             response = self.client.get(ONS_API_URL, params={"id": PACKAGE_ID})
             response.raise_for_status()
             package_data = response.json()
-            
-            for resource in package_data["result"]["resources"]:
-                if str(year) in resource["name"]:
-                    url = resource['url']
-                    logging.info(f"Found resource for year {year}: {url}")
-                    return url
-            
+
+            resources = package_data["result"]["resources"]
+            current_year = date.today().year
+            if year == current_year:
+                for resource in resources:
+                    if resource.get("format", "").upper() == 'CSV':
+                        url = resource['url']
+                        logging.info(f"Recurso de dados diários encontrado para o ano corrente {year}: {url}")
+                        return url
+            else:
+                for resource in resources:
+                    if str(year) in resource["name"]:
+                        url = resource['url']
+                        logging.info(f"Recurso encontrado para o ano {year}: {url}")
+                        return url
+
             raise ONSResourceNotFoundError(f"No resource found for year {year}.")
 
         except httpx.RequestError as e:
@@ -82,8 +94,8 @@ class ONSClient:
 
             # Standardize the date column format
             df['ena_data'] = pd.to_datetime(df['ena_data'], format='%Y-%m-%d').dt.date
-            df = df.astype(str) #Converting to String
-            
+            df = df.astype(str)  # Converting to String
+
             logging.info(f"Data for year {year} processed successfully.")
             return df
 
