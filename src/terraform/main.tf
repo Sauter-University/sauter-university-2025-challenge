@@ -189,6 +189,16 @@ module "iam" {
         "roles/run.admin"
       ]
     }
+    ci_cd = {
+      account_id   = "ci-cd-github-sa"
+      display_name = "CI/CD GitHub Actions Service Account"
+      description  = "Service account for the CI/CD pipeline on GitHub Actions"
+      roles = [
+        "roles/artifactregistry.writer",
+        "roles/run.admin",
+        "roles/iam.serviceAccountUser"
+      ]
+    }
   }
 
   depends_on = [
@@ -200,32 +210,32 @@ module "iam" {
 module "cloud_run_api" {
   source = "./modules/cloud_run"
 
-  project_id            = var.project_id
-  region               = var.region
-  service_name         = var.cloud_run_service_name
+  project_id   = var.project_id
+  region       = var.region
+  service_name = var.cloud_run_service_name
   # Use a placeholder image until the actual image is built
-  container_image      = "gcr.io/cloudrun/hello"
+  container_image       = "gcr.io/cloudrun/hello"
   service_account_email = module.iam.service_account_emails["cloud_run_api"]
-  
+
   # Resource configuration
-  cpu_limit            = "1000m"
-  memory_limit         = "512Mi"
-  max_scale           = 10
-  min_scale           = 0
-  concurrency         = 80
-  timeout_seconds     = 300
-  
+  cpu_limit       = "1000m"
+  memory_limit    = "512Mi"
+  max_scale       = 10
+  min_scale       = 0
+  concurrency     = 80
+  timeout_seconds = 300
+
   # Security
   allow_unauthenticated = true
-  deletion_protection   = false  # Allow deletion in development
-  
+  deletion_protection   = false # Allow deletion in development
+
   # Environment variables (can be extended as needed)
   environment_variables = {
     PROJECT_ID = var.project_id
     REGION     = var.region
     ENV        = "development"
   }
-  
+
   # Labels
   labels = {
     environment = "development"
@@ -241,4 +251,18 @@ module "cloud_run_api" {
   ]
 }
 
+# Workload Identity Federation for GitHub Actions
+module "wif" {
+  source = "./modules/wif"
+
+  project_id = var.project_id
+  # Pega o nome completo da SA 'ci_cd' que o módulo 'iam' acabou de criar
+  service_account_name = module.iam.service_account_names["ci_cd"]
+  # Coloque aqui o seu usuário/organização e o nome do repositório
+  github_repository = "Sauter-University/sauter-university-2025-challenge"
+
+  depends_on = [
+    module.iam
+  ]
+}
 
