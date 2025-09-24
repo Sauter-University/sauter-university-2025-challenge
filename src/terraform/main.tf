@@ -168,8 +168,7 @@ module "iam" {
       roles = [
         "roles/bigquery.dataViewer",
         "roles/bigquery.jobUser",
-        "roles/storage.objectViewer",
-        "roles/storage.objectCreator"
+        "roles/storage.objectAdmin"
       ]
     }
     terraform = {
