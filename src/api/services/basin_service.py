@@ -5,6 +5,7 @@ from pydantic import ValidationError
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import math
+from functools import partial
 
 from api.models.basin import BasinVolume
 from api.repositories.gcs_repository import GCSRepository
@@ -21,7 +22,7 @@ class BasinService:
         self.repository = repository
         self.ons_client = ons_client
 
-    def _fetch_and_save_year(self, year: int) -> int:
+    def _fetch_and_save_year(self, year: int, ingestion_date: date) -> int:
         """
         A helper method to fetch and save data for a single year.
         Designed to be run in parallel by a thread pool.
@@ -35,7 +36,7 @@ class BasinService:
         try:
             df = self.ons_client.get_data_for_year(year)
             if df is not None and not df.empty:
-                self.repository.save_for_year(df, year)
+                self.repository.save_dataframe_for_ingestion(df, year, ingestion_date)
                 return{
                     "year": year,
                     "status": "SUCESSO",
@@ -70,12 +71,14 @@ class BasinService:
         Returns:
             int: The total number of rows ingested across all years.
         """
+        ingestion_date = date.today()
         years_to_fetch = list(range(start_date.year, end_date.year + 1))
+        fetch_with_date = partial(self._fetch_and_save_year, ingestion_date=ingestion_date)
         
         # Use a ThreadPoolExecutor to run downloads in parallel, speeding up ingestion.
         details = []
         with ThreadPoolExecutor(max_workers=5) as executor:
-            results = executor.map(self._fetch_and_save_year, years_to_fetch)
+            results = executor.map(fetch_with_date, years_to_fetch)
             details = list(results)
         
         total_rows_ingested = sum(r.get("rows_ingested", 0) for r in details)

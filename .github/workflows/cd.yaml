@@ -1,10 +1,12 @@
+# NOME DO WORKFLOW: CD - Build and Deploy API
 name: CD - Build and Deploy API
 
-# Gatilho: Roda apenas em pushes para a branch 'main'
+# GATILHO: Roda em pushes para a branch 'main'
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -20,7 +22,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Autenticar com Google Cloud
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
@@ -28,15 +30,21 @@ jobs:
       - name: Configurar o Docker para o Artifact Registry
         run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
 
+      # --- ETAPA DE BUILD CORRIGIDA ---
+      # Agora ele procura o Dockerfile na raiz (padrão) e usa a pasta inteira como contexto.
       - name: Build e Push da Imagem Docker
         run: |
-          docker build -t ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest \
-            -f src/api/Dockerfile ./src/api
+          docker build -t ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest .
           docker push ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest
 
       - name: Deploy da nova imagem no Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v1
+        uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ vars.CLOUD_RUN_SERVICE_NAME }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest
+          env_vars: |
+            PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            REGION=${{ vars.GCP_REGION }}
+            ENV=development
+            GCS_BUCKET_NAME=${{ vars.GCP_BUCKET_NAME }}
