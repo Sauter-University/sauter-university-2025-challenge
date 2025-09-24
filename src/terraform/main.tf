@@ -137,7 +137,7 @@ module "iam" {
   project_id = var.project_id
 
   service_accounts = var.service_accounts_config
-  
+
   depends_on = [
     google_project_service.apis
   ]
