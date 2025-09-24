@@ -13,3 +13,44 @@ override.tf.json
 # Mantenha o lock (é pra versionar)
 !.terraform.lock.hcl
 EOF
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python Artifacts
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# General Logs
+*.log
+
+# IDEs and Development Tools
+.vscode/
+.idea/
+*.swp
+*.swo
+data/
+
+# Test & Coverage artifacts
+.pytest_cache/
+.coverage
