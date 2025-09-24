@@ -1,13 +1,11 @@
-# main.tf (dentro do módulo wif)
-
-# Cria o Workload Identity Pool
+# Create the Workload Identity Pool
 resource "google_iam_workload_identity_pool" "pool" {
   project                   = var.project_id
   workload_identity_pool_id = var.pool_id
   display_name              = "GitHub Actions Pool"
 }
 
-# Cria o Provedor de Identidade para o GitHub dentro do Pool
+# Create the Identity Provider for GitHub within the Pool
 resource "google_iam_workload_identity_pool_provider" "provider" {
   project                            = var.project_id
   workload_identity_pool_id          = google_iam_workload_identity_pool.pool.workload_identity_pool_id
@@ -27,7 +25,7 @@ resource "google_iam_workload_identity_pool_provider" "provider" {
   attribute_condition = "attribute.repository == '${var.github_repository}'"
 }
 
-# Conecta o WIF com a Conta de Serviço do CI/CD
+# Connect WIF with CI/CD Service Account
 resource "google_service_account_iam_binding" "wif_binding" {
   service_account_id = var.service_account_name
   role               = "roles/iam.workloadIdentityUser"

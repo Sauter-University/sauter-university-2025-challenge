@@ -193,9 +193,8 @@ module "wif" {
   source = "./modules/wif"
 
   project_id = var.project_id
-  # Pega o nome completo da SA 'ci_cd' que o módulo 'iam' acabou de criar
   service_account_name = module.iam.service_account_names["ci_cd"]
-  # GitHub repository for Workload Identity Federation
+  # Get the full name of the SA 'ci_cd' that the 'iam' module just created
   github_repository = var.github_repository
 
   depends_on = [
