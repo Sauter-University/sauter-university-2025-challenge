@@ -63,3 +63,15 @@ variable "artifact_registry_repository_id" {
   type        = string
   default     = "sauter-university-docker-repo"
 }
+
+variable "cloud_run_service_name" {
+  description = "The name of the Cloud Run service"
+  type        = string
+  default     = "sauter-api-hub"
+}
+
+variable "container_image_tag" {
+  description = "The tag for the container image"
+  type        = string
+  default     = "latest"
+}

@@ -7,11 +7,236 @@ This Terraform configuration sets up the initial Google Cloud Platform (GCP) inf
 The infrastructure consists of:
 - **Main Configuration**: Core GCP project setup and API enablement
 - **IAM Module**: Service accounts and role assignments with security best practices
-- **Budget Module**: Billing budgets and cost alerts
+- **Budgetgcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
+```
+
+## ☁️ Cloud Run Platform (Python API Hosting)
+
+### Serverless Container Platform Configuration
+
+The infrastructure provisions a Google Cloud Run service for hosting the Python FastAPI application in a fully managed, serverless environment.
+
+#### Cloud Run Service Details
+- **Service Name**: `sauter-reservoir-api` (configurable via `cloud_run_service_name` variable)
+- **Platform**: Cloud Run v2 (latest generation)
+- **Location**: Uses the same region as other resources (`us-central1`)
+- **Purpose**: Host the Python FastAPI application for reservoir data management
+
+#### Service URL
+```
+https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app
+```
+
+#### Key Features
+
+##### 🔄 **Auto-scaling Configuration**
+- **Minimum Instances**: 0 (scales to zero when no traffic)
+- **Maximum Instances**: 10 (scales up based on demand)
+- **Concurrency**: 80 concurrent requests per instance
+- **CPU Idle**: Enabled for cost optimization
+
+##### 💻 **Resource Allocation**
+- **CPU**: 1000m (1 vCPU) with startup CPU boost disabled
+- **Memory**: 512Mi RAM
+- **Request Timeout**: 300 seconds (5 minutes)
+- **Port**: 8080 (HTTP/1)
+
+##### 🛡️ **Security & Access**
+- **Service Account**: `cloud-run-api-sa@sauter-university-472416.iam.gserviceaccount.com`
+- **Public Access**: Enabled (`allUsers` can invoke)
+- **Deletion Protection**: Disabled for development environment
+- **IAM Integration**: Uses dedicated service account with minimal permissions
+
+##### 🔍 **Health Monitoring**
+- **Startup Probe**: HTTP GET on port 8080, path "/"
+  - Initial delay: 10 seconds
+  - Timeout: 5 seconds
+  - Period: 10 seconds
+  - Failure threshold: 3 attempts
+
+- **Liveness Probe**: HTTP GET on port 8080, path "/"
+  - Initial delay: 30 seconds
+  - Timeout: 5 seconds
+  - Period: 30 seconds
+  - Failure threshold: 3 attempts
+
+##### 🌍 **Environment Variables**
+Default environment variables configured:
+```bash
+PROJECT_ID=sauter-university-472416
+REGION=us-central1
+ENV=development
+```
+
+#### Container Image Configuration
+
+The service is configured to use container images from the Artifact Registry:
+```
+us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/sauter-reservoir-api:latest
+```
+
+#### Traffic Management
+- **Traffic Allocation**: 100% to latest revision
+- **Traffic Type**: `TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST`
+- **Revision Management**: Automatic revision creation on updates
+
+#### Usage Examples
+
+##### Deploy New Container Version
+```bash
+# Build and push new container image
+gcloud builds submit --tag us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/sauter-reservoir-api:v2.0 .
+
+# Update Cloud Run service with new image
+gcloud run deploy sauter-reservoir-api \
+  --image us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/sauter-reservoir-api:v2.0 \
+  --region us-central1 \
+  --platform managed
+```
+
+##### Scale Configuration
+```bash
+# Update scaling limits
+gcloud run services update sauter-reservoir-api \
+  --region us-central1 \
+  --min-instances 1 \
+  --max-instances 20 \
+  --concurrency 100
+```
+
+##### Check Service Status
+```bash
+# Get service details
+gcloud run services describe sauter-reservoir-api --region us-central1
+
+# View service logs
+gcloud logs read --filter="resource.type=cloud_run_revision AND resource.labels.service_name=sauter-reservoir-api" --limit=50
+
+# Monitor traffic
+gcloud run services list --filter="sauter-reservoir-api"
+```
+
+##### Test API Endpoints
+```bash
+# Test root endpoint
+curl https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app/
+
+# Test API documentation
+curl https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app/docs
+
+# Test with authentication (if needed)
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app/api/reservoirs
+```
+
+#### Cost Optimization Features
+
+##### 💰 **Pay-per-Use Pricing**
+- **No charges** when service receives no requests
+- **CPU allocation** charged only during request processing
+- **Memory allocation** optimized for FastAPI applications
+- **First 2 million requests/month** are free
+
+##### ⚡ **Performance Optimization**
+- **Cold start minimization** with proper health checks
+- **CPU idle** feature reduces costs during low traffic
+- **Automatic scaling** prevents over-provisioning
+- **Regional deployment** reduces latency
+
+#### Integration with Other Services
+
+##### 📊 **BigQuery Integration**
+The Cloud Run service can access BigQuery through the service account:
+```python
+# Example Python code for BigQuery access
+from google.cloud import bigquery
+
+client = bigquery.Client()
+query = """
+    SELECT * FROM `sauter-university-472416.sauter_challenge_dataset.reservoirs`
+    LIMIT 100
+"""
+results = client.query(query)
+```
+
+##### 🗄️ **Cloud Storage Integration**
+Access to Cloud Storage buckets for data files:
+```python
+# Example Python code for Cloud Storage access
+from google.cloud import storage
+
+client = storage.Client()
+bucket = client.bucket('sauter-university-472416-api-raw-data')
+blob = bucket.blob('reservoir_data.json')
+data = blob.download_as_text()
+```
+
+#### Terraform Configuration Example
+
+```hcl
+module "cloud_run_api" {
+  source = "./modules/cloud_run"
+
+  project_id            = var.project_id
+  region               = var.region
+  service_name         = var.cloud_run_service_name
+  container_image      = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_repository_id}/sauter-reservoir-api:${var.container_image_tag}"
+  service_account_email = module.iam.service_account_emails["cloud_run_api"]
+  
+  # Resource configuration
+  cpu_limit            = "1000m"
+  memory_limit         = "512Mi"
+  max_scale           = 10
+  min_scale           = 0
+  
+  # Security and access
+  allow_unauthenticated = true
+  deletion_protection   = false
+  
+  # Environment variables
+  environment_variables = {
+    PROJECT_ID = var.project_id
+    REGION     = var.region
+    ENV        = "development"
+  }
+  
+  # Labels for organization
+  labels = {
+    environment = "development"
+    project     = "sauter-university"
+    purpose     = "api-service"
+    managed_by  = "terraform"
+  }
+}
+```
+
+#### Monitoring and Observability
+
+##### 📈 **Built-in Metrics**
+- Request count and latency
+- Instance count and utilization
+- Error rates and response codes
+- Cold start frequency and duration
+
+##### 🔍 **Cloud Logging Integration**
+- Application logs automatically collected
+- Request logs with correlation IDs
+- Error tracking and alerting
+- Performance monitoring
+
+##### 🚨 **Alerting Integration**
+Cloud Run metrics integrate with the monitoring module for:
+- High error rate alerts
+- Latency threshold alerts
+- Instance scaling alerts
+- Resource utilization monitoring
+
+## 🔧 Maintenanceule**: Billing budgets and cost alerts
 - **Monitoring Module**: Notification channels and alert policies
 - **Cloud Storage Module**: Google Cloud Storage buckets for data management
 - **BigQuery Module**: Data warehouse dataset for analytics and reporting
 - **Artifact Registry Module**: Docker container registry for application images
+- **Cloud Run Module**: Serverless container platform for hosting Python API
 - **Logging Module**: Cloud Logging configuration with log sinks
 
 ## 📁 Project Structure
@@ -45,6 +270,10 @@ src/terraform/
     │   ├── variables.tf
     │   └── outputs.tf
     ├── artifact_registry/ # Docker container registry module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── cloud_run/      # Cloud Run serverless platform module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
@@ -116,6 +345,8 @@ src/terraform/
 | `dev_budget_amount` | Budget amount in BRL | `300` | No |
 | `bigquery_dataset_id` | BigQuery dataset ID | `sauter_challenge_dataset` | No |
 | `artifact_registry_repository_id` | Artifact Registry repository ID | `sauter-university-docker-repo` | No |
+| `cloud_run_service_name` | Cloud Run service name | `sauter-reservoir-api` | No |
+| `container_image_tag` | Container image tag | `latest` | No |
 | `dev_budget_amount` | Budget amount in BRL | `300` | No |
 
 ### Variable Customization
@@ -149,6 +380,7 @@ The configuration automatically enables these APIs:
 - `iam.googleapis.com` - Identity and Access Management
 - `logging.googleapis.com` - Cloud Logging
 - `monitoring.googleapis.com` - Cloud Monitoring
+- `run.googleapis.com` - Cloud Run serverless platform
 - `storage.googleapis.com` - Cloud Storage
 
 ## 🔐 Identity and Access Management (IAM)
@@ -566,6 +798,9 @@ After successful deployment, the following outputs are available:
 | `notification_channels` | List of notification channel IDs |
 | `bigquery_dataset` | BigQuery dataset information (ID, URL, creation time) |
 | `artifact_registry_repository` | Artifact Registry repository information (ID, name, URL) |
+| `api_service_url` | Cloud Run service URL for the deployed API |
+| `api_service_name` | Cloud Run service name |
+| `api_service_location` | Cloud Run service location/region |
 | `service_account_emails` | Map of all service account emails |
 | `service_account_names` | Map of all service account names |
 | `service_accounts_info` | Complete service accounts information |
@@ -584,6 +819,11 @@ terraform output artifact_registry_repository
 
 # Get repository URL for Docker commands
 terraform output -json artifact_registry_repository | jq -r '.repository_url'
+
+# Get Cloud Run service information
+terraform output api_service_url
+terraform output api_service_name
+terraform output api_service_location
 
 # Get service account information
 terraform output service_account_emails
@@ -627,6 +867,7 @@ Minimum required roles for deploying this infrastructure:
 - `roles/storage.admin` - For creating and managing Cloud Storage buckets
 - `roles/bigquery.admin` - For creating and managing BigQuery datasets
 - `roles/artifactregistry.admin` - For creating and managing Artifact Registry repositories
+- `roles/run.admin` - For creating and managing Cloud Run services
 - `roles/logging.admin` - For creating and managing logging sinks
 
 ## 📚 Additional Resources
