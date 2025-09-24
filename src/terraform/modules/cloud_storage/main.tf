@@ -1,6 +1,6 @@
 
 resource "google_storage_bucket" "sauter_university_bucket" {
-  name          = "bucket-sauter-university"
+  name          = var.bucket_name
   location      = var.region
   storage_class = var.storage_class
   force_destroy = var.force_destroy
@@ -9,9 +9,5 @@ resource "google_storage_bucket" "sauter_university_bucket" {
     enabled = var.enable_versioning
   }
 
-  labels = {
-    environment = "production"
-    purpose     = "general"
-    managed_by  = "terraform"
-  }
+  labels = var.labels
 }

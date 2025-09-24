@@ -28,3 +28,19 @@ variable "enable_versioning" {
   type        = bool
   default     = true
 }
+
+variable "bucket_name" {
+  description = "Name of the storage bucket"
+  type        = string
+  default     = "bucket-sauter-university"
+}
+
+variable "labels" {
+  description = "Labels to apply to the storage bucket"
+  type        = map(string)
+  default = {
+    environment = "production"
+    purpose     = "general"
+    managed_by  = "terraform"
+  }
+}

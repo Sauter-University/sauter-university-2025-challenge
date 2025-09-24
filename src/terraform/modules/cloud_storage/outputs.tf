@@ -53,7 +53,7 @@ output "api_bucket_self_links" {
 
 output "all_bucket_names" {
   description = "List of all bucket names created by this module"
-  value = [google_storage_bucket.sauter_university_bucket.name]
+  value       = [google_storage_bucket.sauter_university_bucket.name]
 }
 
 output "bucket_summary" {

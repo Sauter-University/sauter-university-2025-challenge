@@ -20,25 +20,13 @@ provider "google" {
 
 # Enable required APIs
 resource "google_project_service" "apis" {
-  for_each = toset([
-    "artifactregistry.googleapis.com",
-    "bigquery.googleapis.com",
-    "billingbudgets.googleapis.com",
-    "cloudbilling.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
-    "compute.googleapis.com",
-    "iam.googleapis.com",
-    "logging.googleapis.com",
-    "monitoring.googleapis.com",
-    "run.googleapis.com",
-    "storage.googleapis.com"
-  ])
+  for_each = var.enable_apis ? toset(var.required_apis) : toset([])
 
   project = var.project_id
   service = each.key
 
-  disable_dependent_services = false
-  disable_on_destroy         = false
+  disable_dependent_services = var.disable_dependent_services
+  disable_on_destroy         = var.disable_on_destroy
 }
 
 # Create cloud storage bucket
@@ -46,9 +34,18 @@ module "cloud_storage" {
   source = "./modules/cloud_storage"
 
   project_id        = var.project_id
-  region           = var.region
-  force_destroy    = var.enable_bucket_force_destroy
-  enable_versioning = true
+  region            = var.region
+  bucket_name       = var.storage_bucket_name
+  storage_class     = var.storage_class
+  force_destroy     = var.enable_bucket_force_destroy
+  enable_versioning = var.enable_bucket_versioning
+
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    project     = var.project_name
+    purpose     = "general"
+    managed_by  = var.managed_by
+  })
 
   depends_on = [
     google_project_service.apis
@@ -61,7 +58,7 @@ module "monitoring" {
 
   project_id                = var.project_id
   notification_email        = var.budget_alert_email
-  notification_display_name = "Sauter University Budget Alerts"
+  notification_display_name = var.notification_display_name
 
   depends_on = [
     google_project_service.apis
@@ -78,7 +75,7 @@ module "dev_budget" {
   budget_display_name   = var.budget_display_name
   notification_channels = [module.monitoring.email_notification_channel_name]
   alert_thresholds      = var.budget_alert_thresholds
-  enable_notifications  = true
+  enable_notifications  = var.enable_notifications
 
   depends_on = [
     google_project_service.apis,
@@ -93,18 +90,18 @@ module "data_warehouse_dataset" {
 
   project_id                  = var.project_id
   dataset_id                  = var.bigquery_dataset_id
-  dataset_friendly_name       = "Sauter University Data Warehouse"
-  description                 = "Data warehouse dataset for storing processed university data for analytics and reporting"
-  location                    = var.region == "us-central1" ? "US" : upper(var.region)
+  dataset_friendly_name       = var.bigquery_dataset_friendly_name
+  description                 = var.bigquery_dataset_description
+  location                    = lookup(var.bigquery_location_mapping, var.region, upper(var.region))
   default_table_expiration_ms = null                            # No expiration for data warehouse tables
   delete_contents_on_destroy  = var.enable_bucket_force_destroy # Use same setting as buckets for consistency
 
-  labels = {
-    environment = "development"
-    project     = "sauter-university"
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    project     = var.project_name
     purpose     = "data-warehouse"
-    managed_by  = "terraform"
-  }
+    managed_by  = var.managed_by
+  })
 
   depends_on = [
     google_project_service.apis
@@ -118,15 +115,15 @@ module "docker_repository" {
   project_id    = var.project_id
   repository_id = var.artifact_registry_repository_id
   location      = var.region
-  description   = "Docker repository for storing Sauter University application container images"
-  format        = "DOCKER"
+  description   = var.artifact_registry_description
+  format        = var.artifact_registry_format
 
-  labels = {
-    environment = "development"
-    project     = "sauter-university"
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    project     = var.project_name
     purpose     = "container-registry"
-    managed_by  = "terraform"
-  }
+    managed_by  = var.managed_by
+  })
 
   depends_on = [
     google_project_service.apis
@@ -139,46 +136,7 @@ module "iam" {
 
   project_id = var.project_id
 
-  service_accounts = {
-    cloud_run_api = {
-      account_id   = "cloud-run-api-sa"
-      display_name = "Cloud Run API Service Account"
-      description  = "Service account for Cloud Run API with minimum required permissions"
-      roles = [
-        "roles/bigquery.dataViewer",
-        "roles/bigquery.jobUser",
-        "roles/storage.objectViewer"
-      ]
-    }
-    terraform = {
-      account_id   = "terraform-sa"
-      display_name = "Terraform Service Account"
-      description  = "Service account for Terraform infrastructure management operations"
-      roles = [
-        "roles/compute.admin",
-        "roles/storage.admin",
-        "roles/bigquery.admin",
-        "roles/artifactregistry.admin",
-        "roles/iam.serviceAccountAdmin",
-        "roles/iam.serviceAccountUser",
-        "roles/logging.admin",
-        "roles/monitoring.admin",
-        "roles/resourcemanager.projectIamAdmin",
-        "roles/serviceusage.serviceUsageAdmin",
-        "roles/run.admin"
-      ]
-    }
-    ci_cd = {
-      account_id   = "ci-cd-github-sa"
-      display_name = "CI/CD GitHub Actions Service Account"
-      description  = "Service account for the CI/CD pipeline on GitHub Actions"
-      roles = [
-        "roles/artifactregistry.writer",
-        "roles/run.admin",
-        "roles/iam.serviceAccountUser"
-      ]
-    }
-  }
+  service_accounts = var.service_accounts_config
 
   depends_on = [
     google_project_service.apis
@@ -193,35 +151,35 @@ module "cloud_run_api" {
   region       = var.region
   service_name = var.cloud_run_service_name
   # Use a placeholder image until the actual image is built
-  container_image       = "gcr.io/cloudrun/hello"
+  container_image       = var.cloud_run_default_image
   service_account_email = module.iam.service_account_emails["cloud_run_api"]
 
   # Resource configuration
-  cpu_limit       = "1000m"
-  memory_limit    = "512Mi"
-  max_scale       = 10
-  min_scale       = 0
-  concurrency     = 80
-  timeout_seconds = 300
+  cpu_limit       = var.cloud_run_cpu_limit
+  memory_limit    = var.cloud_run_memory_limit
+  max_scale       = var.cloud_run_max_scale
+  min_scale       = var.cloud_run_min_scale
+  concurrency     = var.cloud_run_concurrency
+  timeout_seconds = var.cloud_run_timeout_seconds
 
   # Security
-  allow_unauthenticated = true
-  deletion_protection   = false # Allow deletion in development
+  allow_unauthenticated = var.cloud_run_allow_unauthenticated
+  deletion_protection   = var.cloud_run_deletion_protection
 
   # Environment variables (can be extended as needed)
   environment_variables = {
     PROJECT_ID = var.project_id
     REGION     = var.region
-    ENV        = "development"
+    ENV        = var.environment
   }
 
   # Labels
-  labels = {
-    environment = "development"
-    project     = "sauter-university"
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    project     = var.project_name
     purpose     = "api-service"
-    managed_by  = "terraform"
-  }
+    managed_by  = var.managed_by
+  })
 
   depends_on = [
     google_project_service.apis,
@@ -237,8 +195,8 @@ module "wif" {
   project_id = var.project_id
   # Pega o nome completo da SA 'ci_cd' que o módulo 'iam' acabou de criar
   service_account_name = module.iam.service_account_names["ci_cd"]
-  # Coloque aqui o seu usuário/organização e o nome do repositório
-  github_repository = "Sauter-University/sauter-university-2025-challenge"
+  # GitHub repository for Workload Identity Federation
+  github_repository = var.github_repository
 
   depends_on = [
     module.iam

@@ -1,0 +1,117 @@
+# GCP Project Configuration
+project_id = "your-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# Environment Configuration
+environment  = "development"  # or "staging", "production"
+project_name = "sauter-university"
+
+# Budget Configuration
+dev_budget_amount        = 300
+budget_alert_email       = "your-email@example.com"
+budget_display_name      = "Sauter University Dev Budget"
+budget_alert_thresholds  = [0.5, 0.75, 0.9, 1.0]
+billing_account_id       = "your-billing-account-id"
+
+# Storage Configuration
+enable_bucket_force_destroy = true  # Set to false in production
+storage_bucket_name         = "bucket-sauter-university"
+storage_class              = "STANDARD"
+enable_bucket_versioning   = true
+
+# BigQuery Configuration
+bigquery_dataset_id              = "sauter_challenge_dataset"
+bigquery_dataset_friendly_name  = "Sauter University Data Warehouse"
+bigquery_dataset_description     = "Data warehouse dataset for storing processed university data for analytics and reporting"
+
+# Artifact Registry Configuration
+artifact_registry_repository_id = "sauter-university-docker-repo"
+artifact_registry_description   = "Docker repository for storing Sauter University application container images"
+artifact_registry_format        = "DOCKER"
+
+# Cloud Run Configuration
+cloud_run_service_name           = "sauter-api-hub"
+cloud_run_default_image         = "gcr.io/cloudrun/hello"
+cloud_run_cpu_limit             = "1000m"
+cloud_run_memory_limit          = "512Mi"
+cloud_run_max_scale             = 10
+cloud_run_min_scale             = 0
+cloud_run_concurrency           = 80
+cloud_run_timeout_seconds       = 300
+cloud_run_allow_unauthenticated = true
+cloud_run_deletion_protection   = false
+
+# GitHub Configuration
+github_repository = "your-username/your-repository"
+
+# Monitoring Configuration
+notification_display_name = "Sauter University Budget Alerts"
+
+# Feature Toggles
+enable_apis          = true
+enable_notifications = true
+
+# Common Labels (applied to all resources)
+common_labels = {
+  team        = "data-engineering"
+  cost-center = "engineering"
+  owner       = "sauter-university"
+}
+
+# API Configuration
+required_apis = [
+  "artifactregistry.googleapis.com",
+  "bigquery.googleapis.com",
+  "billingbudgets.googleapis.com",
+  "cloudbilling.googleapis.com",
+  "cloudresourcemanager.googleapis.com",
+  "compute.googleapis.com",
+  "iam.googleapis.com",
+  "logging.googleapis.com",
+  "monitoring.googleapis.com",
+  "run.googleapis.com",
+  "storage.googleapis.com"
+]
+
+# Service Accounts Configuration (can be customized as needed)
+service_accounts_config = {
+  cloud_run_api = {
+    account_id   = "cloud-run-api-sa"
+    display_name = "Cloud Run API Service Account"
+    description  = "Service account for Cloud Run API with minimum required permissions"
+    roles = [
+      "roles/bigquery.dataViewer",
+      "roles/bigquery.jobUser",
+      "roles/storage.objectViewer"
+    ]
+  }
+  terraform = {
+    account_id   = "terraform-sa"
+    display_name = "Terraform Service Account"
+    description  = "Service account for Terraform infrastructure management operations"
+    roles = [
+      "roles/compute.admin",
+      "roles/storage.admin",
+      "roles/bigquery.admin",
+      "roles/artifactregistry.admin",
+      "roles/iam.serviceAccountAdmin",
+      "roles/iam.serviceAccountUser",
+      "roles/logging.admin",
+      "roles/monitoring.admin",
+      "roles/resourcemanager.projectIamAdmin",
+      "roles/serviceusage.serviceUsageAdmin",
+      "roles/run.admin"
+    ]
+  }
+  ci_cd = {
+    account_id   = "ci-cd-github-sa"
+    display_name = "CI/CD GitHub Actions Service Account"
+    description  = "Service account for the CI/CD pipeline on GitHub Actions"
+    roles = [
+      "roles/artifactregistry.writer",
+      "roles/run.admin",
+      "roles/iam.serviceAccountUser"
+    ]
+  }
+}
