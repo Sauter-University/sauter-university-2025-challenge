@@ -7,6 +7,11 @@ terraform {
       version = "~> 6.8.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "sauter-university-472416-terraform-state"
+    prefix = "terraform/state"
+  }
 }
 
 # Configure the Google Cloud Provider
@@ -18,6 +23,11 @@ provider "google" {
   billing_project       = var.project_id
 }
 
+# Data sources
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
 # Enable required APIs
 resource "google_project_service" "apis" {
   for_each = var.enable_apis ? toset(var.required_apis) : toset([])
@@ -27,6 +37,29 @@ resource "google_project_service" "apis" {
 
   disable_dependent_services = var.disable_dependent_services
   disable_on_destroy         = var.disable_on_destroy
+}
+
+# Create terraform state storage bucket
+module "terraform_state_bucket" {
+  source = "./modules/cloud_storage"
+
+  project_id        = var.project_id
+  region            = var.region
+  bucket_name       = var.terraform_state_bucket
+  storage_class     = "STANDARD"
+  force_destroy     = false # Never force destroy state bucket
+  enable_versioning = true  # Enable versioning for state files
+
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    project     = var.project_name
+    purpose     = "terraform-state"
+    managed_by  = var.managed_by
+  })
+
+  depends_on = [
+    google_project_service.apis
+  ]
 }
 
 # Create cloud storage bucket
