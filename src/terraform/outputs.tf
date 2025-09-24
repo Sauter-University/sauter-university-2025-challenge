@@ -173,14 +173,24 @@ output "api_service_location" {
 output "infrastructure_summary" {
   description = "Summary of all provisioned infrastructure"
   value = {
-    project_id          = var.project_id
-    region              = var.region
-    bigquery_dataset    = module.data_warehouse_dataset.dataset_id
-    docker_registry     = module.docker_repository.repository_url
-    storage_buckets     = length(module.cloud_storage.api_bucket_names)
-    enabled_apis        = length([for api in google_project_service.apis : api.service])
-    service_account     = module.iam.service_account_email
-    terraform_sa        = module.iam.service_account_emails["terraform"]
-    api_service_url     = module.cloud_run_api.service_url
+    project_id       = var.project_id
+    region           = var.region
+    bigquery_dataset = module.data_warehouse_dataset.dataset_id
+    docker_registry  = module.docker_repository.repository_url
+    storage_buckets  = length(module.cloud_storage.api_bucket_names)
+    enabled_apis     = length([for api in google_project_service.apis : api.service])
+    service_account  = module.iam.service_account_email
+    terraform_sa     = module.iam.service_account_emails["terraform"]
+    api_service_url  = module.cloud_run_api.service_url
   }
+}
+
+output "cicd_service_account_email" {
+  description = "The email of the Service Account for the CI/CD pipeline."
+  value       = module.iam.service_account_emails["ci_cd"]
+}
+
+output "workload_identity_provider_name" {
+  description = "The full name of the Workload Identity Provider for GitHub Actions."
+  value       = module.wif.workload_identity_provider_name
 }

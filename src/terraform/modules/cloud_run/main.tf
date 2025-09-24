@@ -6,12 +6,12 @@ resource "google_cloud_run_v2_service" "api_service" {
 
   # Allow deletion for development environment
   deletion_protection = var.deletion_protection
-  
+
   labels = var.labels
 
   template {
     labels = var.labels
-    
+
     # Service account for the Cloud Run service
     service_account = var.service_account_email
 
@@ -26,21 +26,21 @@ resource "google_cloud_run_v2_service" "api_service" {
 
     containers {
       image = var.container_image
-      
+
       # Resource limits
       resources {
         limits = {
           cpu    = var.cpu_limit
           memory = var.memory_limit
         }
-        cpu_idle = true
+        cpu_idle          = true
         startup_cpu_boost = false
       }
 
       # Port configuration
       ports {
         container_port = var.container_port
-        name          = "http1"
+        name           = "http1"
       }
 
       # Environment variables
@@ -59,9 +59,9 @@ resource "google_cloud_run_v2_service" "api_service" {
           port = var.container_port
         }
         initial_delay_seconds = 10
-        timeout_seconds      = 5
-        period_seconds       = 10
-        failure_threshold    = 3
+        timeout_seconds       = 5
+        period_seconds        = 10
+        failure_threshold     = 3
       }
 
       liveness_probe {
@@ -70,9 +70,9 @@ resource "google_cloud_run_v2_service" "api_service" {
           port = var.container_port
         }
         initial_delay_seconds = 30
-        timeout_seconds      = 5
-        period_seconds       = 30
-        failure_threshold    = 3
+        timeout_seconds       = 5
+        period_seconds        = 30
+        failure_threshold     = 3
       }
     }
 
