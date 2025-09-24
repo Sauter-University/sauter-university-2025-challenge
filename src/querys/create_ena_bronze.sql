@@ -8,4 +8,4 @@ SELECT
   ena_armazenavel_bacia_percentualmlt,
   CURRENT_TIMESTAMP() AS data_carga_bronze
 FROM
-  sauter-university-472416.ons_dataset.external_table
+  sauter-university-472416.ons_bronze.external_table
