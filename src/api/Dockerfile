@@ -6,11 +6,11 @@ ENV PIP_NO_CACHE_DIR=off PIP_DISABLE_PIP_VERSION_CHECK=on
 # Instala o uv para builds rápidos
 RUN pip install uv
 
-# Copia o arquivo de dependências (agora está na mesma pasta)
+# Copia o arquivo de dependências
 COPY requirements.txt .
 
-# Cria o wheelhouse com uv
-RUN uv pip wheel --wheel-dir /usr/src/app/wheels -r requirements.txt
+# Cria o wheelhouse com o comando correto do uv
+RUN uv wheel -r requirements.txt --wheel-dir /usr/src/app/wheels
 
 
 # ---- Estágio 2: Final ----
@@ -18,15 +18,11 @@ FROM python:3.11-slim
 WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE 1 PYTHONUNBUFFERED 1
 
-# Instala o uv
-RUN pip install uv
-
-# Copia os wheels e o requirements.txt do estágio anterior
+# Copia os wheels do estágio anterior
 COPY --from=builder /usr/src/app/wheels /wheels
-COPY --from=builder /usr/src/app/requirements.txt .
 
-# Instala as dependências a partir dos wheels com uv
-RUN uv pip install --system --no-cache /wheels/*
+# Instala as dependências a partir dos wheels locais, sem precisar do uv
+RUN pip install --no-index --find-links=/wheels /wheels/*
 
 # Copia todo o código da pasta atual (src/api) para o container
 COPY . .
