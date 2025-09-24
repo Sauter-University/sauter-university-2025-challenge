@@ -7,6 +7,11 @@ terraform {
       version = "~> 6.8.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "sauter-university-472416-terraform-state"
+    prefix = "terraform/state"
+  }
 }
 
 # Configure the Google Cloud Provider
@@ -18,6 +23,11 @@ provider "google" {
   billing_project       = var.project_id
 }
 
+# Data sources
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
 # Enable required APIs
 resource "google_project_service" "apis" {
   for_each = var.enable_apis ? toset(var.required_apis) : toset([])
@@ -27,6 +37,29 @@ resource "google_project_service" "apis" {
 
   disable_dependent_services = var.disable_dependent_services
   disable_on_destroy         = var.disable_on_destroy
+}
+
+# Create terraform state storage bucket
+module "terraform_state_bucket" {
+  source = "./modules/cloud_storage"
+
+  project_id        = var.project_id
+  region            = var.region
+  bucket_name       = var.terraform_state_bucket
+  storage_class     = "STANDARD"
+  force_destroy     = false # Never force destroy state bucket
+  enable_versioning = true  # Enable versioning for state files
+
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    project     = var.project_name
+    purpose     = "terraform-state"
+    managed_by  = var.managed_by
+  })
+
+  depends_on = [
+    google_project_service.apis
+  ]
 }
 
 # Create cloud storage bucket
@@ -192,10 +225,9 @@ module "cloud_run_api" {
 module "wif" {
   source = "./modules/wif"
 
-  project_id = var.project_id
-  # Pega o nome completo da SA 'ci_cd' que o módulo 'iam' acabou de criar
+  project_id           = var.project_id
   service_account_name = module.iam.service_account_names["ci_cd"]
-  # GitHub repository for Workload Identity Federation
+  # Get the full name of the SA 'ci_cd' that the 'iam' module just created
   github_repository = var.github_repository
 
   depends_on = [

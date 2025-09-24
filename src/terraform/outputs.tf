@@ -1,3 +1,22 @@
+# Terraform Backend Outputs
+output "terraform_state_bucket_name" {
+  description = "The name of the Terraform state bucket"
+  value       = module.terraform_state_bucket.bucket_name
+}
+
+output "terraform_state_bucket_url" {
+  description = "The URL of the Terraform state bucket"
+  value       = module.terraform_state_bucket.bucket_url
+}
+
+output "terraform_backend_config" {
+  description = "Backend configuration values for Terraform"
+  value = {
+    bucket = var.terraform_state_bucket
+    prefix = var.terraform_state_prefix
+  }
+}
+
 output "project_id" {
   description = "The GCP project ID"
   value       = var.project_id
@@ -83,11 +102,6 @@ output "api_buckets" {
 output "storage_buckets_summary" {
   description = "Summary of all created storage buckets"
   value       = module.cloud_storage.bucket_summary
-}
-
-# Data source to get project info for outputs
-data "google_project" "project" {
-  project_id = var.project_id
 }
 
 # BigQuery outputs

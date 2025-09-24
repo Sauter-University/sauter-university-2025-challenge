@@ -12,7 +12,9 @@ override.tf.json
 
 # Mantenha o lock (é pra versionar)
 !.terraform.lock.hcl
-EOF
+
+# Backend configuration (contains sensitive bucket names)
+backend.hcl
 
 # Environment variables
 .env

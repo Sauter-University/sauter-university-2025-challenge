@@ -322,3 +322,16 @@ variable "common_labels" {
   type        = map(string)
   default     = {}
 }
+
+# Terraform Backend Configuration
+variable "terraform_state_bucket" {
+  description = "GCS bucket name for storing Terraform state"
+  type        = string
+  default     = "sauter-university-472416-terraform-state"
+}
+
+variable "terraform_state_prefix" {
+  description = "Prefix for Terraform state files in GCS bucket"
+  type        = string
+  default     = "terraform/state"
+}

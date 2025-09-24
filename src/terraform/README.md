@@ -33,6 +33,57 @@ This infrastructure follows a **unified storage approach** with a single bucket 
 gcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
 ```
 
+## 🗃️ Remote State Backend Configuration
+
+### Google Cloud Storage Backend
+
+This Terraform configuration uses Google Cloud Storage as a remote backend to store the Terraform state file securely and enable team collaboration.
+
+#### Backend Configuration Details
+- **Backend Type**: Google Cloud Storage (GCS)
+- **State Bucket**: `sauter-university-472416-terraform-state`
+- **State Prefix**: `terraform/state`
+- **Versioning**: Enabled for state file versioning and recovery
+- **Force Destroy**: Disabled for state bucket protection
+
+#### Setting Up the Remote Backend
+
+1. **First-time Setup**: For initial deployment, the state bucket will be created by Terraform itself:
+   ```bash
+   # Initialize Terraform (first time without backend)
+   terraform init
+   
+   # Apply to create the state bucket
+   terraform apply -target=module.terraform_state_bucket
+   ```
+
+2. **Migrate to Remote Backend**: After the bucket is created, reinitialize with the backend:
+   ```bash
+   # Reinitialize with remote backend
+   terraform init
+   
+   # Confirm migration when prompted
+   ```
+
+3. **Alternative Backend Configuration**: You can also use the backend configuration file:
+   ```bash
+   # Initialize with backend configuration file
+   terraform init -backend-config=backend.tf
+   ```
+
+#### Backend Security & Best Practices
+- **Bucket Versioning**: Enabled to maintain state file history
+- **No Force Destroy**: State bucket cannot be accidentally deleted
+- **Organized Prefix**: State files are organized under `terraform/state/` prefix
+- **Team Collaboration**: Multiple team members can work with the same state
+
+#### Backend Configuration Variables
+```hcl
+# In terraform.tfvars
+terraform_state_bucket = "sauter-university-472416-terraform-state"
+terraform_state_prefix = "terraform/state"
+```
+
 ## ☁️ Cloud Run Platform (Python API Hosting)
 
 ### Serverless Container Platform Configuration

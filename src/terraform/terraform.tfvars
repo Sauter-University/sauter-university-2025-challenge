@@ -11,5 +11,9 @@ zone       = "us-central1-a"
 dev_budget_amount  = 300
 budget_alert_email = "sauter-university-472416@googlegroups.com"
 
+# Terraform Backend Configuration
+terraform_state_bucket = "sauter-university-472416-terraform-state"
+terraform_state_prefix = "terraform/state"
+
 # Temporarily enable force destroy for bucket migration
 enable_bucket_force_destroy = true
