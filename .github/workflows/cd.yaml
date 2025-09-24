@@ -47,4 +47,4 @@ jobs:
             PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             REGION=${{ vars.GCP_REGION }}
             ENV=development
-            GCS_BUCKET_NAME=${{ vars.GCP_PROJECT_ID }}-api-raw-data
+            GCS_BUCKET_NAME=${{ vars.GCP_BUCKET_NAME }}
