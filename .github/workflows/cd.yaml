@@ -40,5 +40,10 @@ jobs:
           service: ${{ vars.CLOUD_RUN_SERVICE_NAME }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REPO_NAME }}/${{ vars.CLOUD_RUN_SERVICE_NAME }}:latest
+          
+          # CORREÇÃO: Enviando todas as variáveis de ambiente necessárias
           env_vars: |
+            PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            REGION=${{ vars.GCP_REGION }}
+            ENV=development
             GCS_BUCKET_NAME=sauter-university-472416-api-raw-data
