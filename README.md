@@ -34,7 +34,7 @@ Este projeto desenvolve uma solução end-to-end na Google Cloud Platform que:
 ## 🏗️ Arquitetura da Solução
 
 ### Stack Técnica
-- **Infraestrutura**: Terraform, GCP (Cloud Run, BigQuery, Cloud Storage, Artifact Registry)
+- **Infraestrutura**: Terraform, GCP (Vertex AI Endpoints, BigQuery, Cloud Storage, Artifact Registry)
 - **Backend**: Python 3.11+, FastAPI, Uvicorn, Pydantic
 - **Dados**: ONS API, BigQuery, Cloud Storage (Parquet)
 - **Observabilidade**: Cloud Monitoring, Cloud Logging, Budget Alerts
@@ -45,7 +45,7 @@ Este projeto desenvolve uma solução end-to-end na Google Cloud Platform que:
 1. **Ingestão**: Coleta dados ONS → Cloud Storage (particionado) - *Gustavo*
 2. **Processamento**: BigQuery (tabelas externas → Trusted → Processed) - *Gustavo*
 3. **API**: FastAPI serve dados por data/período - *Vitor*
-4. **Análise**: Modelo Machine Learning para previsão de ENA - *Magno*
+4. **Análise**: Modelo de previsão (LSTM) implantado no Vertex AI Endpoints. O serviço busca features da camada Gold do BigQuery, gera as previsões e salva os resultados de volta no BigQuery para monitoramento. - *Magno*
 5. **Visualização**: Dashboard Looker Studio - *Tobias*
 
 ## 🚀 Como Rodar Localmente
@@ -168,7 +168,7 @@ terraform apply tfplan
 
 ### Trilhos Específicos
 **Trilho A (Modelo Preditivo):**
-- `GET /v1/predictions/reservatorios/{id}?date=YYYY-MM-DD`
+- `GET /prever?horizonte=30` (Endpoint implantado no Vertex AI que retorna a previsão para os próximos N dias).
 
 **Trilho B (Multi-Agente):**
 - `POST /v1/agents/query` → `{question: "..."}`
@@ -488,5 +488,6 @@ test: adiciona testes para ingestão
 
 
 ---
+
 
 **🎓 Sauter University 2025 Challenge** - Desenvolvido com ☕ pela equipe 
