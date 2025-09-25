@@ -1,0 +1,8 @@
+gunicorn
+flask
+pandas
+numpy
+tensorflow
+scikit-learn
+joblib
+google-cloud-bigquery
