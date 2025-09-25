@@ -7,7 +7,7 @@ from google.cloud import bigquery
 import os
 from datetime import datetime
 
-# --- 1. CONFIGURAÇÃO INICIAL (sem alterações) ---
+# --- 1. CONFIGURAÇÃO INICIAL ---
 project_id = 'sauter-university-472416'
 client = bigquery.Client(project=project_id)
 
@@ -16,139 +16,143 @@ model = load_model('modelo_ena_lstm.keras')
 scaler = joblib.load('scaler_ena.pkl')
 print("Modelo e scaler carregados com sucesso.")
 
-# --- 2. ### FUNÇÃO ALTERADA ### ---
-def buscar_dados_com_features(nome_bacia, dias_necessarios):
-    """Busca os dados já com features da tabela GOLD do BigQuery."""
-    print(f"Buscando os últimos {dias_necessarios} dias de dados com features para a bacia {nome_bacia}...")
+# --- Constante com a ordem exata das colunas ---
+COLUNAS_DO_TREINO = [
+    'ena_armazenavel', 'sin_1', 'cos_1', 'sin_2', 'cos_2', 'sin_3', 'cos_3', 'sin_4', 'cos_4',
+    'lag_7', 'lag_14', 'lag_30', 'lag_60', 'rolling_mean_7', 'rolling_mean_30'
+]
+
+# --- 2. FUNÇÕES DE SUPORTE (RESTAURADAS) ---
+
+def buscar_dados_recentes(nome_bacia, dias_necessarios, data_base=None):
+    """Busca os dados BRUTOS da tabela Silver. Pede mais dias para calcular lags."""
+    print(f"Buscando dados brutos para a bacia {nome_bacia}...")
     
-    # IMPORTANTE: A ordem das colunas no SELECT deve ser EXATAMENTE a mesma
-    # que o seu scaler espera. Verifique a ordem no seu notebook de treinamento.
+    query_filtro_data = ""
+    if data_base:
+        query_filtro_data = f"AND ena_data <= '{data_base}'"
+
     query = f"""
         SELECT
-            ena_armazenavel,
-            sin_1, cos_1, sin_2, cos_2, sin_3, cos_3, sin_4, cos_4,
-            lag_7, lag_14, lag_30, lag_60,
-            rolling_mean_7, rolling_mean_30,
-            Data_Referencia -- A data ainda é útil para o índice
+            ena_data,
+            ena_armazenavel_bacia_mwmed
         FROM
-            `sauter-university-472416.ons_gold.ena_features_gold`
+            `sauter-university-472416.ons_silver.ena_basin_silver`
         WHERE
-            Nome_Bacia = '{nome_bacia}'
-            -- Garante que não pegamos linhas com features nulas
-            AND lag_60 IS NOT NULL 
+            nom_bacia = '{nome_bacia}'
+            {query_filtro_data}
         ORDER BY
-            Data_Referencia DESC
+            ena_data DESC
         LIMIT {dias_necessarios}
     """
     df = client.query(query).to_dataframe()
-    
-    # A query já vem ordenada do mais novo para o mais antigo (DESC),
-    # então precisamos inverter para o modelo (do mais antigo para o mais novo).
-    df = df.sort_values(by='Data_Referencia', ascending=True)
-    df.set_index('Data_Referencia', inplace=True)
-    
+    df['ena_data'] = pd.to_datetime(df['ena_data'])
+    df.set_index('ena_data', inplace=True)
+    df.sort_index(inplace=True)
+    df = df.rename(columns={'ena_armazenavel_bacia_mwmed': 'ena_armazenavel'})
+    df.ffill(inplace=True)
     return df
 
-# --- 3. ### FUNÇÃO REMOVIDA ### ---
-# A função criar_features(df) não é mais necessária!
+def criar_features(df):
+    """Cria o mesmo conjunto de features usado no treinamento."""
+    df_features = df.copy()
+    day_of_year = df_features.index.dayofyear
+    for k in range(1, 5):
+        df_features[f'sin_{k}'] = np.sin(2 * np.pi * k * day_of_year / 365.25)
+        df_features[f'cos_{k}'] = np.cos(2 * np.pi * k * day_of_year / 365.25)
+    for lag in [7, 14, 30, 60]:
+        df_features[f'lag_{lag}'] = df_features['ena_armazenavel'].shift(lag)
+    for window in [7, 30]:
+        df_features[f'rolling_mean_{window}'] = df_features['ena_armazenavel'].rolling(window=window).mean()
+    df_features.dropna(inplace=True)
+    return df_features
 
-# --- 4. LÓGICA DE PREVISÃO (com pequenas alterações) ---
-def gerar_previsao_futura(horizonte_previsao=180, window_size=180):
-    # Não precisamos mais de um buffer (como +60), pegamos exatamente o que a janela precisa.
-    df_com_features = buscar_dados_com_features('PARANAPANEMA', dias_necessarios=window_size)
+# --- 3. LÓGICA DE PREVISÃO ATUALIZADA ---
+def gerar_previsao_futura(horizonte_previsao=180, window_size=180, data_base=None):
+    # Pedir dados brutos suficientes para criar a primeira janela de features
+    # (window_size + 60 dias para o maior lag)
+    dados_historicos = buscar_dados_recentes('TOCANTINS', dias_necessarios=window_size + 60, data_base=data_base)
     
-    # Pegar a última janela de dados (o DataFrame já está pronto)
-    input_atual_df = df_com_features
+    # Criar features a partir dos dados brutos
+    df_com_features = criar_features(dados_historicos)
+
+    if len(df_com_features) < window_size:
+        raise ValueError(f"Não foram encontrados dados suficientes (após criar features) antes de {data_base} para a janela de {window_size} dias.")
+
+    # Pegar a última janela de dados (já com features e na ordem correta)
+    input_df_recursivo = df_com_features.tail(window_size)[COLUNAS_DO_TREINO]
     
-    # O resto da função continua praticamente igual...
-    input_atual_scaled = scaler.transform(input_atual_df)
+    # Normalizar a janela inicial
+    input_scaled_recursivo = scaler.transform(input_df_recursivo)
     
-    lista_previsoes_scaled = []
+    previsoes_finais = []
 
     for i in range(horizonte_previsao):
-        input_para_prever = input_atual_scaled.reshape((1, window_size, input_atual_df.shape[1]))
+        input_para_prever = input_scaled_recursivo.reshape((1, window_size, input_df_recursivo.shape[1]))
         proxima_previsao_scaled = model.predict(input_para_prever, verbose=0)
-        lista_previsoes_scaled.append(proxima_previsao_scaled[0, 0])
         
-        # A lógica para criar a "próxima linha" para a previsão recursiva ainda é necessária
-        # porque precisamos prever passo a passo.
-        nova_previsao_valor = proxima_previsao_scaled[0, 0]
-        nova_data = input_atual_df.index[-1] + pd.Timedelta(days=1)
+        # Desnormalizar a previsão para obter o valor real
+        dummy_array = np.zeros((1, input_df_recursivo.shape[1]))
+        dummy_array[0, 0] = proxima_previsao_scaled[0, 0]
+        proxima_previsao_descaled = scaler.inverse_transform(dummy_array)[0, 0]
+        previsoes_finais.append(proxima_previsao_descaled)
+        
+        # Criar as features para o próximo dia usando o valor real previsto
+        nova_data = input_df_recursivo.index[-1] + pd.Timedelta(days=1)
+        temp_series = pd.concat([input_df_recursivo['ena_armazenavel'], pd.Series([proxima_previsao_descaled], index=[nova_data])])
         
         novo_dia_features = pd.DataFrame(index=[nova_data])
-        novo_dia_features['ena_armazenavel'] = 0 
-        
+        novo_dia_features['ena_armazenavel'] = proxima_previsao_descaled
         day_of_year = novo_dia_features.index.dayofyear
         for k in range(1, 5):
             novo_dia_features[f'sin_{k}'] = np.sin(2 * np.pi * k * day_of_year / 365.25)
             novo_dia_features[f'cos_{k}'] = np.cos(2 * np.pi * k * day_of_year / 365.25)
-        
-        temp_series = pd.concat([input_atual_df['ena_armazenavel'], pd.Series([0], index=[nova_data])])
         for lag in [7, 14, 30, 60]:
             novo_dia_features[f'lag_{lag}'] = temp_series.shift(lag).iloc[-1]
         for window in [7, 30]:
             novo_dia_features[f'rolling_mean_{window}'] = temp_series.rolling(window=window).mean().iloc[-1]
 
-        novo_dia_features['ena_armazenavel'] = nova_previsao_valor
-        novo_dia_scaled = scaler.transform(novo_dia_features[input_atual_df.columns])
-        
-        input_atual_scaled = np.append(input_atual_scaled[1:], novo_dia_scaled, axis=0)
-        input_atual_df = pd.concat([input_atual_df.iloc[1:], pd.DataFrame(scaler.inverse_transform(novo_dia_scaled), index=[nova_data], columns=input_atual_df.columns)])
+        # Normalizar a nova linha (garantindo a ordem das colunas)
+        novo_dia_scaled = scaler.transform(novo_dia_features[COLUNAS_DO_TREINO])
 
-    previsoes_array_scaled = np.array(lista_previsoes_scaled).reshape(-1, 1)
-    dummy_array_pred = np.zeros((len(previsoes_array_scaled), input_atual_df.shape[1]))
-    dummy_array_pred[:, 0] = previsoes_array_scaled.flatten()
-    previsoes_finais = scaler.inverse_transform(dummy_array_pred)[:, 0]
-    
+        # Atualizar a janela para a próxima iteração
+        input_scaled_recursivo = np.append(input_scaled_recursivo[1:], novo_dia_scaled, axis=0)
+        input_df_recursivo = pd.concat([input_df_recursivo.iloc[1:], novo_dia_features[COLUNAS_DO_TREINO]])
+
+    # Criar o DataFrame de resultado final
     datas_previsao = pd.to_datetime(pd.date_range(start=df_com_features.index[-1] + pd.Timedelta(days=1), periods=horizonte_previsao))
     df_resultado = pd.DataFrame({'data': datas_previsao.strftime('%Y-%m-%d'), 'valor': previsoes_finais})
     
     return df_resultado
 
+# --- O resto do código (salvar no BQ e o endpoint Flask) continua o mesmo ---
 
-# --- 4. ### NOVA FUNÇÃO ### PARA SALVAR NO BIGQUERY ---
 def salvar_previsoes_no_bigquery(df_previsoes):
-    """Carrega o DataFrame de previsões em uma tabela do BigQuery."""
-    
-    # Adiciona a coluna com o timestamp de quando a previsão foi gerada
     df_para_salvar = df_previsoes.copy()
     df_para_salvar['data_previsao'] = datetime.utcnow()
-    
-    # Garante que os tipos de dados estão corretos para o BQ
     df_para_salvar['data'] = pd.to_datetime(df_para_salvar['data'])
-    
     table_id = "sauter-university-472416.ons_gold.previsoes_ena"
-    
-    # Configura o job para carregar os dados. APPEND adiciona os dados na tabela.
-    job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND",
-    )
-    
+    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND",)
     try:
         print(f"Salvando {len(df_para_salvar)} previsões na tabela {table_id}...")
-        job = client.load_table_from_dataframe(
-            df_para_salvar, table_id, job_config=job_config
-        )
-        job.result()  # Espera o job ser concluído
+        job = client.load_table_from_dataframe(df_para_salvar, table_id, job_config=job_config)
+        job.result()
         print("Previsões salvas com sucesso no BigQuery.")
     except Exception as e:
         print(f"Erro ao salvar dados no BigQuery: {e}")
-        # Decide o que fazer em caso de erro. Pode ser só logar ou levantar uma exceção.
 
-# --- 5. ### ALTERADO ### ENDPOINT FLASK ---
 app = Flask(__name__)
 
 @app.route('/prever', methods=['GET'])
 def prever():
     try:
         horizonte = request.args.get('horizonte', default=180, type=int)
-        
+        data_base = request.args.get('data_base', default=None, type=str)
+
         print(f"Requisição recebida. Gerando previsão para {horizonte} dias...")
-        df_previsao = gerar_previsao_futura(horizonte_previsao=horizonte)
-        
-        # ### ALTERAÇÃO AQUI ###: Chama a função para salvar antes de retornar
+        df_previsao = gerar_previsao_futura(horizonte_previsao=horizonte, window_size=180, data_base=data_base)
+
         salvar_previsoes_no_bigquery(df_previsao)
-        
         resultado = df_previsao.to_dict(orient='records')
         
         print("Previsão gerada e salva com sucesso.")
