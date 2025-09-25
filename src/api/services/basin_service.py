@@ -1,97 +1,76 @@
 from datetime import date
 from typing import List
-from fastapi import HTTPException
-from pydantic import ValidationError
 import logging
 from concurrent.futures import ThreadPoolExecutor
 import math
 from functools import partial
+from pydantic import ValidationError
 
 from api.models.basin import BasinSilverData
 from api.repositories.gcs_repository import GCSRepository
 from api.repositories.bigquery_repository import BigQueryRepository 
 from api.core.ons_client import ONSClient
-from api.core.exceptions import ONSClientError, ONSDataProcessingError, ONSResourceNotFoundError
+from api.core.exceptions import ONSClientError
 from api.core.logging_decorator import logging_it
 
 class BasinService:
-    """
-    The service layer that contains the core business logic of the application.
-    It orchestrates the ONS client and the repository to fulfill use cases.
-    """
     def __init__(self, gcs_repo: GCSRepository, bq_repo: BigQueryRepository, ons_client: ONSClient):
         self.gcs_repository = gcs_repo
         self.bq_repository = bq_repo
         self.ons_client = ons_client    
+        self.current_year = date.today().year
 
-    def _fetch_and_save_year(self, year: int, ingestion_date: date) -> int:
+    def _process_year_ingestion(self, year: int, ingestion_date: date) -> dict:
         """
-        A helper method to fetch and save data for a single year.
-        Designed to be run in parallel by a thread pool.
-
-        Args:
-            year (int): The year to process.
-
-        Returns:
-            int: The number of rows ingested for the year, or 0 on failure.
+        Processes the ingestion for a single year, applying the new verification logic.
         """
         try:
+            if year < self.current_year:
+                if self.gcs_repository.historical_data_exists(year):
+                    logging.info(f"Dados históricos para o ano {year} já existem. Pulando download.")
+                    return {"year": year, "status": "PULADO", "detail": "Dados históricos já existem no GCS."}
+                logging.info(f"Dados históricos para o ano {year} não encontrados. Baixando...")
+
+            #  --- LOGIC FOR THE CURRENT YEAR (2025) ---
+            if year == self.current_year:
+                latest_ingestion = self.gcs_repository.get_latest_ingestion_date()
+                if latest_ingestion and latest_ingestion == ingestion_date:
+                    logging.info(f"Dados para o ano corrente ({year}) já foram ingeridos hoje. Pulando download.")
+                    return {"year": year, "status": "PULADO", "detail": f"Os dados já foram carregados hoje ({latest_ingestion})."}
+                logging.info(f"Dados para o ano corrente ({year}) precisam de atualização. Baixando...")
+
+            # --- EXECUTE DOWNLOAD AND SAVE (if not skipped) ---
             df = self.ons_client.get_data_for_year(year)
             if df is not None and not df.empty:
-                self.gcs_repository.save_dataframe_for_ingestion(df, year, ingestion_date)
-                return{
+                self.gcs_repository.save_dataframe(df, year, ingestion_date)
+                return {
                     "year": year,
                     "status": "SUCESSO",
-                    "detail": "Dados salvos com sucesso.",
+                    "detail": "Novos dados baixados e salvos no GCS.",
                     "rows_ingested": len(df)
                 }
-            return {
-                "year": year,
-                "status": "FALHA",
-                "detail": "Nenhum dado retornado pelo cliente ONS.",
-                "rows_ingested": 0
-            }
-        except ONSClientError as e:
-            logging.error(f"Falha ao processar o ano {year}: {e}")
-            return {
-                "year": year,
-                "status": "FALHA",
-                "detail": str(e),
-                "rows_ingested": 0
-            }
+            return {"year": year, "status": "FALHA", "detail": "Nenhum dado retornado pelo cliente ONS.", "rows_ingested": 0}
+
+        except Exception as e:
+            # Captura qualquer exceção inesperada durante o processamento do ano
+            logging.error(f"Falha inesperada ao processar o ano {year}: {e}", exc_info=True)
+            return {"year": year, "status": "FALHA", "detail": str(e), "rows_ingested": 0}
 
     @logging_it
-    def ingest_data(self, start_date: date, end_date: date) -> int:
-        """
-        Ingests data from the ONS for a given date range by fetching data for each
-        year in parallel using a thread pool.
-
-        Args:
-            start_date (date): The start of the ingestion period.
-            end_date (date): The end of the ingestion period.
-
-        Returns:
-            int: The total number of rows ingested across all years.
-        """
+    def ingest_data(self, start_date: date, end_date: date) -> dict:
         ingestion_date = date.today()
         years_to_fetch = list(range(start_date.year, end_date.year + 1))
-        fetch_with_date = partial(self._fetch_and_save_year, ingestion_date=ingestion_date)
+        process_func = partial(self._process_year_ingestion, ingestion_date=ingestion_date)
         
-        # Use a ThreadPoolExecutor to run downloads in parallel, speeding up ingestion.
         details = []
         with ThreadPoolExecutor(max_workers=5) as executor:
-            results = executor.map(fetch_with_date, years_to_fetch)
+            results = executor.map(process_func, years_to_fetch)
             details = list(results)
         
-        total_rows_ingested = sum(r.get("rows_ingested", 0) for r in details)
+        total_rows_ingested = sum(r.get("rows_ingested", 0) for r in details if r.get("status") == "SUCESSO")
 
-        summary = {
-            "years_requested": years_to_fetch, 
-            "total_rows_ingested": total_rows_ingested
-        }
-        
+        summary = { "years_requested": years_to_fetch, "total_rows_ingested": total_rows_ingested }
         return { "summary": summary, "details": details }
-    
     @logging_it
     def get_historical_volume(self, start_date: date, end_date: date, page: int, size: int) -> dict:
         """
