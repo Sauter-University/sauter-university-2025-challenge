@@ -42,11 +42,11 @@ Este projeto desenvolve uma solução end-to-end na Google Cloud Platform que:
 - **Testes**: pytest, coverage ≥ 85%
 
 ### Fluxo de Dados
-1. **Ingestão**: Coleta dados ONS → Cloud Storage (particionado) - *Gustavo*
-2. **Processamento**: BigQuery (tabelas externas → Trusted → Processed) - *Gustavo*
-3. **API**: FastAPI serve dados por data/período - *Vitor*
-4. **Análise**: Modelo de previsão (LSTM) implantado no Vertex AI Endpoints. O serviço busca features da camada Gold do BigQuery, gera as previsões e salva os resultados de volta no BigQuery para monitoramento. - *Magno*
-5. **Visualização**: Dashboard Looker Studio - *Tobias*
+1. **Ingestão**: Coleta dados ONS → Cloud Storage (particionado) - *Vitor Silvestre, Pedro Tobias*
+2. **Processamento**: BigQuery (tabelas externas → Trusted → Processed) - *Gustavo Wandereli*
+3. **API**: FastAPI serve dados por data/período - *Vitor Silvestre*
+4. **Análise**: Modelo de previsão (LSTM) implantado no Vertex AI Endpoints. O serviço busca features da camada Gold do BigQuery, gera as previsões e salva os resultados de volta no BigQuery para monitoramento. - *Magno Sillas*
+5. **Visualização**: Dashboard Looker Studio - *Pedro Tobias*
 
 ## 🚀 Como Rodar Localmente
 
@@ -411,7 +411,7 @@ gcloud run deploy university-api \
 - **Atualização**: Automática a cada 1 hora
 - **Métricas**: KPIs operacionais, previsões ML, alertas de anomalias
 
-### Justificativa dos Gráficos (Tobias)
+### Justificativa dos Gráficos (Pedro Tobias)
 1. **Série temporal ENA**: Tendências sazonais e anomalias
 2. **Mapas de calor**: Correlação entre reservatórios  
 3. **Distribuições**: Análise estatística dos volumes
@@ -492,4 +492,5 @@ test: adiciona testes para ingestão
 
 
 **🎓 Sauter University 2025 Challenge** - Desenvolvido com ☕ pela equipe 
+
 
