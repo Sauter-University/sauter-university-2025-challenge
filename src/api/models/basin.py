@@ -1,5 +1,5 @@
 import math
-from typing import Any, List, Generic, TypeVar
+from typing import Any, List, Generic, TypeVar, Optional
 from datetime import date
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 
@@ -21,31 +21,40 @@ class IngestDataRequest(BaseModel):
 
 # --- Data Transfer Object (DTO) Models ---
 
-class BasinVolume(BaseModel):
+class BasinSilverData(BaseModel):
     """
     Represents the structure of a single basin data point.
     This model is used as the response item in the API.
     """
     model_config = ConfigDict(from_attributes=True) # Enables ORM-like data mapping
 
-    basin_name: str = Field(alias="nom_bacia")
-    recorded_date: date = Field(alias="ena_data")
-    volume_percent_useful: float = Field(alias="ena_armazenavel_bacia_percentualmlt")
+    nom_bacia: str
+    ena_data: date 
+    ena_bruta_bacia_mwmed: Optional[float] = None
+    ena_bruta_bacia_percentualmlt: Optional[float] = None
+    ena_armazenavel_bacia_mwmed: Optional[float] = None
+    ena_armazenavel_bacia_percentualmlt: Optional[float] = None
 
-    @field_validator("volume_percent_useful", mode='before')
+    @field_validator(
+        "ena_bruta_bacia_mwmed", 
+        "ena_bruta_bacia_percentualmlt", 
+        "ena_armazenavel_bacia_mwmed", 
+        "ena_armazenavel_bacia_percentualmlt", 
+        mode='before'
+    )   
     @classmethod
-    def clean_volume_percent(cls, v: Any) -> float:
+    def clean_volume_percent(cls, v: Any) -> Optional[float]:
         """
         A pre-validator that cleans the 'volume_percent_useful' field.
         It handles None, NaN, and comma-decimal values before the main validation.
         """
         if v is None or (isinstance(v, float) and math.isnan(v)):
-            return 0.0
+            return None
         try:
             # Convert comma-separated decimals to dot-separated and then to float
             return float(str(v).replace(',', '.'))
         except (ValueError, TypeError):
-            # If conversion fails (e.g., for an empty string), return 0.0
+            # If conversion fails (e.g., for an empty string), return None
             return 0.0
 
 # --- Paginated Response Models ---
