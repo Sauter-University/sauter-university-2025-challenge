@@ -165,6 +165,7 @@ terraform apply tfplan
 | `GET` | `/metrics` | Métricas Prometheus |
 | `GET` | `/v1/ena/reservatorios/{id}/daily?date=YYYY-MM-DD` | Dados diários de reservatório |
 | `GET` | `/v1/ena/reservatorios/{id}/historico?start_date&end_date` | Dados históricos |
+| `GET` | `[https://modelo-ena-api-332613513827.us-central1.run.app/prever?data_base=2023-01-01](https://modelo-ena-api-332613513827.us-central1.run.app/prever?data_base=2023-01-01)` | Previsão ML |
 
 ### Trilhos Específicos
 **Trilho A (Modelo Preditivo):**
@@ -491,3 +492,4 @@ test: adiciona testes para ingestão
 
 
 **🎓 Sauter University 2025 Challenge** - Desenvolvido com ☕ pela equipe 
+
