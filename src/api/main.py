@@ -3,12 +3,12 @@ from api.routers import basin
 
 # Initialize the FastAPI application
 app = FastAPI(
-    title="Sauter Reservoir Data API",
-    description="An API to download and query reservoir data from Brazil's National System Operator (ONS).",
+    title="Sauter Basin Data API",
+    description="An API to download and query basin data from Brazil's National System Operator (ONS).",
     version="1.0.0",
 )
 
-# Include the routes defined in the reservoir router module.
+# Include the routes defined in the basin router module.
 # This keeps the main application file clean and organized.
 app.include_router(basin.router)
 
@@ -18,4 +18,4 @@ async def read_root():
     Root endpoint for health checks.
     Provides a simple welcome message to indicate that the API is online.
     """
-    return {"message": "Welcome to the Reservoir Data API. See /docs for more information."}
+    return {"message": "Welcome to the Basin Data API. See /docs for more information."}

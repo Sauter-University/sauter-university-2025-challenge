@@ -47,19 +47,13 @@ class ONSClient:
             package_data = response.json()
 
             resources = package_data["result"]["resources"]
-            current_year = date.today().year
-            if year == current_year:
-                for resource in resources:
-                    if resource.get("format", "").upper() == 'CSV':
-                        url = resource['url']
-                        logging.info(f"Recurso de dados diários encontrado para o ano corrente {year}: {url}")
-                        return url
-            else:
-                for resource in resources:
-                    if str(year) in resource["name"]:
-                        url = resource['url']
-                        logging.info(f"Recurso encontrado para o ano {year}: {url}")
-                        return url
+
+            for resource in resources:
+                resource_name = resource.get("name", "")
+                if resource.get("format", "").upper() == 'CSV' and str(year) in resource_name:
+                    url = resource['url']
+                    logging.info(f"Recurso encontrado para o ano {year}: {url}")
+                    return url
 
             raise ONSResourceNotFoundError(f"No resource found for year {year}.")
 

@@ -7,8 +7,9 @@ from concurrent.futures import ThreadPoolExecutor
 import math
 from functools import partial
 
-from api.models.basin import BasinVolume
+from api.models.basin import BasinSilverData
 from api.repositories.gcs_repository import GCSRepository
+from api.repositories.bigquery_repository import BigQueryRepository 
 from api.core.ons_client import ONSClient
 from api.core.exceptions import ONSClientError, ONSDataProcessingError, ONSResourceNotFoundError
 from api.core.logging_decorator import logging_it
@@ -18,9 +19,10 @@ class BasinService:
     The service layer that contains the core business logic of the application.
     It orchestrates the ONS client and the repository to fulfill use cases.
     """
-    def __init__(self, repository: GCSRepository, ons_client: ONSClient):
-        self.repository = repository
-        self.ons_client = ons_client
+    def __init__(self, gcs_repo: GCSRepository, bq_repo: BigQueryRepository, ons_client: ONSClient):
+        self.gcs_repository = gcs_repo
+        self.bq_repository = bq_repo
+        self.ons_client = ons_client    
 
     def _fetch_and_save_year(self, year: int, ingestion_date: date) -> int:
         """
@@ -36,7 +38,7 @@ class BasinService:
         try:
             df = self.ons_client.get_data_for_year(year)
             if df is not None and not df.empty:
-                self.repository.save_dataframe_for_ingestion(df, year, ingestion_date)
+                self.gcs_repository.save_dataframe_for_ingestion(df, year, ingestion_date)
                 return{
                     "year": year,
                     "status": "SUCESSO",
@@ -105,37 +107,28 @@ class BasinService:
         Returns:
             dict: A dictionary containing the paginated data and metadata.
         """
-        result_df = self.repository.find_by_date_range(start_date, end_date)
+        result_df, total_items = self.bq_repository.find_by_date_range(start_date, end_date, page, size)
         
         # Handle the case where the repository returns no data
-        if result_df.empty:
+        if total_items == 0 or result_df.empty:
             return {"total_items": 0, "total_pages": 0, "current_page": page, "items_on_page": 0, "items": []}
 
-        valid_volumes = []
+        valid_items = []
         for index, row in result_df.iterrows():
             try:
                 # Validate each row against the Pydantic model
-                volume = BasinVolume.model_validate(row, from_attributes=True)
-                valid_volumes.append(volume)
+                item = BasinSilverData.model_validate(row, from_attributes=True)
+                valid_items.append(item)
             except ValidationError as e:
                 # If a row is invalid, log the error and skip it instead of failing the request.
                 logging.error(f"Validation error on data row (skipping): {row.to_dict()}. Error: {e}")
                 continue
         
-        # --- Pagination Logic ---
-        total_items = len(valid_volumes)
-        if total_items == 0:
-             return {"total_items": 0, "total_pages": 0, "current_page": page, "items_on_page": 0, "items": []}
-            
-        start_index = (page - 1) * size
-        end_index = start_index + size
-        
-        paginated_items = valid_volumes[start_index:end_index]
         
         return {
             "total_items": total_items,
             "total_pages": math.ceil(total_items / size),
             "current_page": page,
-            "items_on_page": len(paginated_items),
-            "items": paginated_items
+            "items_on_page": len(valid_items),
+            "items": valid_items
         }
