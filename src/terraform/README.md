@@ -1,8 +1,8 @@
 # Sauter University GCP Infrastructure
 
-This Terraform configuration sets up the initial Google Cloud Platform (GCP) infrastructure for Sauter University, including project setup, billing alerts, and monitoring. 
+This Terraform configuration sets up the complete Google Cloud Platform (GCP) infrastructure for the Sauter University Reservoir Data Management System, a comprehensive solution for downloading, processing, and querying reservoir data from Brazil's National System Operator (ONS).
 
-**✨ Now following 100% Terraform Best Practices with complete variable-driven configuration!**
+**✨ Following 100% Terraform Best Practices with complete variable-driven configuration!**
 
 ## 🏗️ Architecture Overview
 
@@ -12,25 +12,50 @@ The infrastructure consists of:
 - **Budget Module**: Billing budgets and cost alerts
 - **Monitoring Module**: Notification channels and alert policies
 - **Cloud Storage Module**: Single unified bucket (`bucket-sauter-university`) for all data management
-- **BigQuery Module**: Data warehouse dataset for analytics and reporting
+- **BigQuery Module**: Data warehouse dataset (`sauter_challenge_dataset`) for analytics and reporting
 - **Artifact Registry Module**: Docker container registry for application images
-- **Cloud Run Module**: Serverless container platform for hosting Python API
-- **Logging Module**: Cloud Logging configuration with automatic export to the unified bucket
+- **Cloud Run Module**: Serverless FastAPI application for reservoir data management
+- **Workload Identity Federation Module**: Secure CI/CD integration with GitHub Actions
 
-### 🎯 Simplified Design Philosophy
+## 🎯 System Purpose
 
-This infrastructure follows a **unified storage approach** with a single bucket for all data types:
-- **Simplified Management**: One bucket to rule them all - easier permissions, monitoring, and cost tracking
-- **Organized Structure**: Data organization through folder hierarchy rather than separate buckets
-- **Centralized Logging**: All logs exported to the same bucket for unified log management
-- **Cost Efficiency**: Reduced complexity and potential cost savings with simplified bucket structure
-- **Easier Backup**: Single point of backup and disaster recovery
+The **Sauter University Reservoir Data Management System** provides:
+
+### 🌊 Core Functionality
+- **Data Ingestion**: Automated download of reservoir data from Brazil's ONS (Operador Nacional do Sistema Elétrico)
+- **Data Processing**: Clean, transform, and validate reservoir volume data
+- **RESTful API**: FastAPI application providing endpoints for:
+  - `/api/v1/ingest` - Trigger data ingestion for specific date ranges
+  - `/api/v1/basin-volumes` - Query reservoir volume data with pagination
+  - `/docs` - Interactive API documentation
+  - Health checks and monitoring endpoints
+
+### 🏗️ Infrastructure Design Philosophy
+
+This infrastructure follows a **unified, cloud-native approach**:
+- **Simplified Management**: Single unified bucket for all data types - easier permissions, monitoring, and cost tracking
+- **Organized Structure**: Data organization through logical folder hierarchy rather than separate buckets
+- **Serverless Architecture**: Cloud Run for auto-scaling, pay-per-use API hosting
+- **Secure CI/CD**: Workload Identity Federation for keyless GitHub Actions authentication
+- **Cost Efficiency**: Reduced complexity and optimized resource utilization
+- **Data Warehouse Integration**: BigQuery for analytics and reporting on reservoir data
 
 ### 📋 Quick Reference Commands
 
 ```bash
 # List container images in Artifact Registry
 gcloud artifacts docker images list us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo
+
+# Access API documentation
+curl https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app/docs
+
+# Test API health
+curl https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app/
+
+# Trigger data ingestion
+curl -X POST https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app/api/v1/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"start_date": "2024-01-01", "end_date": "2024-01-31"}'
 ```
 
 ## 🗃️ Remote State Backend Configuration
@@ -84,21 +109,39 @@ terraform_state_bucket = "sauter-university-472416-terraform-state"
 terraform_state_prefix = "terraform/state"
 ```
 
-## ☁️ Cloud Run Platform (Python API Hosting)
+## ☁️ Cloud Run Platform (Reservoir Data API Hosting)
 
-### Serverless Container Platform Configuration
+### Serverless FastAPI Application Configuration
 
-The infrastructure provisions a Google Cloud Run service for hosting the Python FastAPI application in a fully managed, serverless environment.
+The infrastructure provisions a Google Cloud Run service hosting the **Sauter Reservoir Data API** - a FastAPI application that manages reservoir data from Brazil's ONS (Operador Nacional do Sistema Elétrico).
 
 #### Cloud Run Service Details
-- **Service Name**: `sauter-reservoir-api` (configurable via `cloud_run_service_name` variable)
+- **Service Name**: `sauter-api-hub` (configurable via `cloud_run_service_name` variable)
 - **Platform**: Cloud Run v2 (latest generation)
 - **Location**: Uses the same region as other resources (`us-central1`)
-- **Purpose**: Host the Python FastAPI application for reservoir data management
+- **Purpose**: Host the FastAPI application for reservoir data ingestion, processing, and querying
 
-#### Service URL
-```
-https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app
+#### API Information
+- **Service URL**: `https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app`
+- **API Title**: "Sauter Reservoir Data API"
+- **Version**: "1.0.0"
+- **Documentation**: Available at `/docs` endpoint with interactive Swagger UI
+
+#### Available API Endpoints
+```bash
+# Root endpoint (health check)
+GET /                           # Welcome message and API status
+
+# Data ingestion
+POST /api/v1/ingest            # Trigger data ingestion for date ranges
+
+# Data querying  
+GET /api/v1/basin-volumes      # Query reservoir volume data with pagination
+
+# API documentation
+GET /docs                      # Interactive Swagger UI documentation
+GET /redoc                     # ReDoc API documentation
+GET /openapi.json              # OpenAPI specification
 ```
 
 #### Key Features
@@ -117,9 +160,12 @@ https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app
 
 ##### 🛡️ **Security & Access**
 - **Service Account**: `cloud-run-api-sa@sauter-university-472416.iam.gserviceaccount.com`
-- **Public Access**: Enabled (`allUsers` can invoke)
-- **Deletion Protection**: Disabled for development environment
-- **IAM Integration**: Uses dedicated service account with minimal permissions
+- **Public Access**: Enabled (`allUsers` can invoke) - suitable for API endpoints
+- **Deletion Protection**: Configurable per environment (disabled for development)
+- **IAM Integration**: Uses dedicated service account with minimal required permissions:
+  - `roles/bigquery.dataViewer` - Read access to reservoir datasets
+  - `roles/bigquery.jobUser` - Execute queries for data retrieval
+  - `roles/storage.objectViewer` - Read access to processed data in Cloud Storage
 
 ##### 🔍 **Health Monitoring**
 - **Startup Probe**: HTTP GET on port 8080, path "/"
@@ -135,18 +181,39 @@ https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app
   - Failure threshold: 3 attempts
 
 ##### 🌍 **Environment Variables**
-Default environment variables configured:
+Default environment variables configured for the FastAPI application:
 ```bash
-PROJECT_ID=sauter-university-472416
-REGION=us-central1
-ENV=development
+PROJECT_ID=sauter-university-472416    # GCP Project ID for service integration
+REGION=us-central1                     # Deployment region
+ENV=development                        # Environment identifier
+GCS_BUCKET_NAME=bucket-sauter-university  # Bucket for data storage (when configured)
 ```
 
 #### Container Image Configuration
 
-The service is configured to use container images from the Artifact Registry:
-```
+The service uses container images from the Artifact Registry:
+```bash
+# Default placeholder image (until actual application is deployed)
+gcr.io/cloudrun/hello
+
+# Target container image location for FastAPI application
 us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/sauter-reservoir-api:latest
+```
+
+#### FastAPI Application Structure
+```python
+# Main application components
+app = FastAPI(
+    title="Sauter Reservoir Data API",
+    description="An API to download and query reservoir data from Brazil's National System Operator (ONS).",
+    version="1.0.0"
+)
+
+# Available routers and endpoints
+- Basin Volume Router (/api/v1)
+  - POST /ingest - Data ingestion from ONS
+  - GET /basin-volumes - Query reservoir data
+- Health Check (/) - System status
 ```
 
 #### Traffic Management
@@ -332,44 +399,48 @@ Cloud Run metrics integrate with the monitoring module for:
 
 ```
 src/terraform/
-├── main.tf              # Main Terraform configuration
-├── variables.tf         # Input variables
-├── outputs.tf           # Output values
-├── README.md           # This file
+├── main.tf                    # Main Terraform configuration - 100% variable-driven
+├── variables.tf               # Input variables (30+ comprehensive variables)
+├── outputs.tf                 # Output values for all infrastructure components
+├── backend.tf                 # Remote state backend configuration
+├── terraform.tfvars.example   # Example configuration file
+├── TERRAFORM_BEST_PRACTICES.md # Implementation guide
+├── README.md                  # This comprehensive documentation
 └── modules/
-    ├── iam/            # IAM service accounts and roles module
+    ├── iam/                   # IAM service accounts and roles module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    ├── budget/         # Budget and billing alerts module
+    ├── budget/                # Budget and billing alerts module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    ├── monitoring/     # Monitoring and notifications module
+    ├── monitoring/            # Monitoring and notifications module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    ├── cloud_storage/  # Google Cloud Storage buckets module
+    ├── cloud_storage/         # Google Cloud Storage unified bucket module
     │   ├── main.tf
     │   ├── variables.tf
     │   ├── outputs.tf
-    │   └── README.md   # Detailed bucket documentation
-    ├── bigquery/       # BigQuery data warehouse module
+    │   └── README.md          # Detailed bucket documentation
+    ├── bigquery/              # BigQuery data warehouse module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    ├── artifact_registry/ # Docker container registry module
+    ├── artifact_registry/     # Docker container registry module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    ├── cloud_run/      # Cloud Run serverless platform module
+    ├── cloud_run/             # Cloud Run FastAPI application module
     │   ├── main.tf
     │   ├── variables.tf
     │   └── outputs.tf
-    └── logging/        # Cloud Logging configuration
-        ├── main.tf
-        ├── variables.tf
-        └── outputs.tf
+    ├── wif/                   # Workload Identity Federation (CI/CD) module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    └── security_policies/     # Security policies module (reserved for future use)
 ```
 
 ## 🚀 Quick Start
@@ -1099,62 +1170,151 @@ terraform import google_project_service.apis project-id/service-name
 
 After successful deployment, the following outputs are available:
 
+### Core Infrastructure Outputs
+
 | Output | Description |
 |--------|-------------|
 | `project_id` | The GCP project ID |
 | `project_number` | The GCP project number |
 | `region` | The configured GCP region |
 | `zone` | The configured GCP zone |
+| `enabled_apis` | List of all enabled Google Cloud APIs |
+
+### Budget and Monitoring Outputs
+
+| Output | Description |
+|--------|-------------|
 | `budget_name` | The created budget name |
-| `notification_channels` | List of notification channel IDs |
-| `bigquery_dataset` | BigQuery dataset information (ID, URL, creation time) |
-| `artifact_registry_repository` | Artifact Registry repository information (ID, name, URL) |
-| `api_service_url` | Cloud Run service URL for the deployed API |
-| `api_service_name` | Cloud Run service name |
-| `api_service_location` | Cloud Run service location/region |
+| `budget_id` | The created budget ID |
+| `budget_amount` | The configured budget amount in BRL |
+| `budget_alert_email` | The email address configured for budget alerts |
+| `monitoring_notification_channel` | Email notification channel information |
+
+### Storage and Data Outputs
+
+| Output | Description |
+|--------|-------------|
 | `sauter_university_bucket` | Unified bucket information (name, URL, self_link) |
 | `storage_buckets_summary` | Summary of the unified Cloud Storage bucket |
-| `service_account_emails` | Map of all service account emails |
-| `service_account_names` | Map of all service account names |
-| `service_accounts_info` | Complete service accounts information |
-| `infrastructure_summary` | Summary of all provisioned infrastructure |
-| `enabled_apis` | List of all enabled Google Cloud APIs |
-| `logging_sinks_summary` | Summary of all Cloud Logging sinks |
+| `terraform_state_bucket_name` | Terraform state bucket name |
+| `terraform_state_bucket_url` | Terraform state bucket URL |
+| `terraform_backend_config` | Backend configuration values |
+| `bigquery_dataset` | BigQuery dataset information (ID, URL, creation time) |
+
+### Container Registry and Cloud Run Outputs
+
+| Output | Description |
+|--------|-------------|
+| `artifact_registry_repository` | Artifact Registry repository information (ID, name, URL) |
+| `api_service_url` | Cloud Run service URL for the deployed FastAPI |
+| `api_service_name` | Cloud Run service name |
+| `api_service_location` | Cloud Run service location/region |
+
+### Service Account and Security Outputs
+
+| Output | Description |
+|--------|-------------|
+| `cloud_run_api_service_account` | Cloud Run API service account information |
+| `cloud_run_api_service_account_email` | Email of the Cloud Run API service account |
+| `terraform_service_account` | Terraform service account information |
+| `terraform_service_account_email` | Email of the Terraform service account |
+| `cicd_service_account_email` | Email of the CI/CD service account |
+| `all_service_accounts` | Information about all service accounts |
+| `workload_identity_provider_name` | Full name of the Workload Identity Provider |
+
+### Infrastructure Summary
+
+| Output | Description |
+|--------|-------------|
+| `infrastructure_summary` | Complete summary of all provisioned infrastructure |
 
 ### Accessing Output Values
+
+#### Basic Output Commands
 ```bash
 # View all outputs
 terraform output
 
-# View specific output
-terraform output bigquery_dataset
-terraform output artifact_registry_repository
+# View infrastructure summary
+terraform output infrastructure_summary
 
-# Get repository URL for Docker commands
-terraform output -json artifact_registry_repository | jq -r '.repository_url'
+# View all service accounts
+terraform output all_service_accounts
+```
 
-# Get Cloud Run service information
+#### API and Service Information
+```bash
+# Get FastAPI service URL
 terraform output api_service_url
+# Output: https://sauter-api-hub-mh6f7nhi4q-uc.a.run.app
+
+# Get API service details
 terraform output api_service_name
 terraform output api_service_location
 
+# Test the API
+curl $(terraform output -raw api_service_url)
+curl $(terraform output -raw api_service_url)/docs
+```
+
+#### Container Registry Information
+```bash
+# Get repository URL for Docker commands
+terraform output -json artifact_registry_repository | jq -r '.repository_url'
+
+# Build complete image path
+echo "$(terraform output -json artifact_registry_repository | jq -r '.repository_url')/sauter-reservoir-api:latest"
+```
+
+#### Storage and Data Access
+```bash
 # Get unified bucket information
 terraform output sauter_university_bucket
-terraform output storage_buckets_summary
 
-# Get bucket URL for gsutil commands
+# Get bucket URL for gsutil commands  
 terraform output -json sauter_university_bucket | jq -r '.url'
 
-# Get service account information
-terraform output service_account_emails
-terraform output service_accounts_info
+# Access bucket directly
+gsutil ls $(terraform output -json sauter_university_bucket | jq -r '.url')
 
-# Get specific service account email for use in configurations
-terraform output -json service_account_emails | jq -r '.cloud_run_api'
-terraform output -json service_account_emails | jq -r '.terraform'
+# BigQuery dataset information
+terraform output bigquery_dataset
+terraform output -json bigquery_dataset | jq -r '.dataset_id'
+```
 
-# Get logging information
-terraform output logging_sinks_summary
+#### Service Account and Security
+```bash
+# Get Cloud Run API service account
+terraform output cloud_run_api_service_account_email
+
+# Get CI/CD service account for GitHub Actions
+terraform output cicd_service_account_email
+
+# Get Workload Identity Provider for GitHub setup
+terraform output workload_identity_provider_name
+
+# Get Terraform service account
+terraform output terraform_service_account_email
+```
+
+#### Budget and Monitoring
+```bash
+# Check budget configuration
+terraform output budget_amount
+terraform output budget_alert_email
+
+# Get notification channel details
+terraform output monitoring_notification_channel
+```
+
+#### Backend and State Management
+```bash
+# Get backend configuration
+terraform output terraform_backend_config
+
+# Get state bucket information
+terraform output terraform_state_bucket_name
+terraform output terraform_state_bucket_url
 ```
 
 ## 🏆 Terraform Best Practices Implementation
@@ -1325,7 +1485,88 @@ Minimum required roles for deploying this infrastructure:
 - `roles/run.admin` - For creating and managing Cloud Run services
 - `roles/logging.admin` - For creating and managing logging sinks
 
-## 📚 Additional Resources
+## � Workload Identity Federation (CI/CD Integration)
+
+### Secure GitHub Actions Authentication
+
+The infrastructure includes Workload Identity Federation (WIF) for secure, keyless authentication between GitHub Actions and Google Cloud Platform.
+
+#### WIF Configuration Details
+- **Workload Identity Pool**: GitHub Actions Pool
+- **Identity Provider**: GitHub Actions Provider  
+- **Issuer URI**: `https://token.actions.githubusercontent.com`
+- **Repository**: `Sauter-University/sauter-university-2025-challenge`
+- **Service Account**: `ci-cd-github-sa@sauter-university-472416.iam.gserviceaccount.com`
+
+#### Key Benefits
+- **🔑 Keyless Authentication**: No need to store service account keys in GitHub secrets
+- **🛡️ Enhanced Security**: Short-lived tokens instead of long-lived credentials
+- **🎯 Repository-Scoped**: Access limited to specific GitHub repository
+- **🚀 CI/CD Ready**: Direct integration with GitHub Actions workflows
+
+#### CI/CD Service Account Permissions
+The `ci_cd` service account has minimal required permissions:
+- `roles/artifactregistry.writer` - Push container images to registry
+- `roles/run.admin` - Deploy and manage Cloud Run services  
+- `roles/iam.serviceAccountUser` - Impersonate other service accounts when needed
+
+#### Attribute Mapping
+```hcl
+attribute_mapping = {
+  "google.subject"       = "assertion.sub"
+  "attribute.actor"      = "assertion.actor" 
+  "attribute.repository" = "assertion.repository"
+}
+
+# Repository restriction
+attribute_condition = "attribute.repository == 'Sauter-University/sauter-university-2025-challenge'"
+```
+
+#### Usage in GitHub Actions
+```yaml
+# Example GitHub Actions workflow step
+- name: Authenticate to Google Cloud
+  uses: google-github-actions/auth@v2
+  with:
+    workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+    service_account: ci-cd-github-sa@sauter-university-472416.iam.gserviceaccount.com
+
+- name: Build and Push Container
+  run: |
+    gcloud builds submit --tag us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/sauter-reservoir-api:${{ github.sha }}
+    
+- name: Deploy to Cloud Run
+  run: |
+    gcloud run deploy sauter-api-hub \
+      --image us-central1-docker.pkg.dev/sauter-university-472416/sauter-university-docker-repo/sauter-reservoir-api:${{ github.sha }} \
+      --region us-central1
+```
+
+#### Required GitHub Secrets
+```bash
+# Only one secret needed (no service account keys!)
+WIF_PROVIDER: projects/123456789/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
+```
+
+#### Security Best Practices Implemented
+- ✅ **No Service Account Keys**: Uses OIDC tokens instead
+- ✅ **Repository Scoping**: Access limited to specific GitHub repo  
+- ✅ **Minimal Permissions**: Least-privilege access model
+- ✅ **Attribute Validation**: Validates GitHub repository ownership
+- ✅ **Short-Lived Tokens**: Temporary authentication tokens
+
+#### Terraform Configuration Example
+```hcl
+module "wif" {
+  source = "./modules/wif"
+
+  project_id           = var.project_id
+  service_account_name = module.iam.service_account_names["ci_cd"]
+  github_repository    = var.github_repository  # "Sauter-University/sauter-university-2025-challenge"
+}
+```
+
+## �📚 Additional Resources
 
 ### 🎯 **This Project's Documentation**
 - [**TERRAFORM_BEST_PRACTICES.md**](TERRAFORM_BEST_PRACTICES.md) - ⭐ **NEW** - Complete implementation guide
@@ -1334,9 +1575,15 @@ Minimum required roles for deploying this infrastructure:
 
 ### 🌐 **Official Documentation** 
 - [Terraform Google Provider Documentation](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
+- [GCP Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [GCP Billing Budgets API](https://cloud.google.com/billing/docs/how-to/budgets)
 - [GCP Cloud Monitoring](https://cloud.google.com/monitoring/docs)
+- [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation)
+- [GitHub Actions with GCP](https://github.com/google-github-actions/auth)
 - [Terraform Best Practices](https://www.terraform.io/docs/cloud/guides/recommended-practices/index.html)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [BigQuery Documentation](https://cloud.google.com/bigquery/docs)
+- [Artifact Registry Documentation](https://cloud.google.com/artifact-registry/docs)
 
 ### 🏆 **Best Practices Resources**
 - [HashiCorp Terraform Best Practices](https://cloud.google.com/docs/terraform/best-practices-for-terraform)
@@ -1362,6 +1609,36 @@ This infrastructure now implements **100% Terraform best practices** with:
 - ✅ **Environment-specific configurations**
 - ✅ **Industry-standard patterns**
 
+---
+
+## 📋 Summary
+
+This **Sauter University Reservoir Data Management System** provides a complete, production-ready infrastructure for:
+
+### 🌊 **Reservoir Data Management**
+- ✅ Automated data ingestion from Brazil's ONS (National System Operator)
+- ✅ FastAPI-based REST API for data access and management
+- ✅ BigQuery data warehouse for analytics and reporting
+- ✅ Unified Cloud Storage for all data types
+
+### 🏗️ **Cloud-Native Architecture**  
+- ✅ Serverless deployment with Cloud Run (auto-scaling, pay-per-use)
+- ✅ Container-based deployment with Artifact Registry
+- ✅ Secure CI/CD with Workload Identity Federation
+- ✅ Comprehensive monitoring and budget alerts
+
+### 🔧 **Infrastructure as Code Excellence**
+- ✅ **100% Terraform best practices** implemented
+- ✅ **Zero hardcoded values** - everything configurable via variables
+- ✅ **Multi-environment support** (dev/staging/production)
+- ✅ **Complete documentation** and examples provided
+
+### 🛡️ **Enterprise Security**
+- ✅ **Principle of least privilege** for all service accounts
+- ✅ **Keyless authentication** with Workload Identity Federation
+- ✅ **Repository-scoped access** for CI/CD pipelines
+- ✅ **Secure state management** with remote GCS backend
+
 **Note**: This infrastructure is designed for the Sauter University 2025 Challenge following industry best practices. All configurations are fully customizable via variables - modify `terraform.tfvars` according to your specific requirements and security policies.
 
-**🚀 Ready for production deployment with best-in-class Terraform configuration!**
+**🚀 Ready for production deployment with enterprise-grade Terraform configuration!**
