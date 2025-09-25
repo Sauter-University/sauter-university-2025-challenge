@@ -1,116 +1,78 @@
 import pandas as pd
-from datetime import date
-from typing import List
+from datetime import date, datetime
+from typing import List, Optional
 from google.cloud import storage
 import io
 
 class GCSRepository:
     """
-    Repository for interacting with Google Cloud Storage (GCS).
-    This class abstracts all the logic for reading and writing data
-    to a GCS bucket, treating it as our data persistence layer.
+    Repository for interacting with Google Cloud Storage (GCS),
+    abstracting the logic for reading and writing data in the bucket.
     """
 
     def __init__(self, bucket_name: str):
-        """
-        Initializes the repository with a specific GCS bucket.
-
-        Args:
-            bucket_name (str): The name of the GCS bucket to interact with.
-        """
         if not bucket_name:
-            raise ValueError("GCS bucket name is required.")
+            raise ValueError("The GCS bucket name is required.")
         self.client = storage.Client()
         self.bucket_name = bucket_name
         self.bucket = self.client.bucket(self.bucket_name)
+        self.current_year = date.today().year
 
-    def _get_blob_name_for_year(self, year: int) -> str:
-        """
-        Constructs the file path (blob name) for a given year's data.
-        
-        Args:
-            year (int): The year of the data.
+    def _get_historical_blob_name(self, year: int) -> str:
+        """Constructs the file path for a historical year."""
+        return f"basin_data/historical/basin_data_{year}.parquet"
 
-        Returns:
-            str: The full path of the object in the GCS bucket.
-        """
-        return f"basin_data/basin_data_{year}.parquet"
-
-    def _get_blob_name_for_ingestion(self, ingestion_date: date, year: int) -> str:
-        """
-        Constructs the file path (blob name) for a specific ingestion date and year.
-        
-        Args:
-            ingestion_date (date): The date when the data was ingested.
-            year (int): The year of the data.
-
-        Returns:
-            str: The full path of the object in the GCS bucket.
-        """
+    def _get_current_blob_name(self, ingestion_date: date, year: int) -> str:
+        """Constructs the partitioned path for the current year's data."""
         date_folder = ingestion_date.strftime('%Y-%m-%d')
-        return f"basin_data/{date_folder}/basin_data_{year}.parquet"
+        # Hive-style partitioning for compatibility with BigQuery and other tools
+        return f"basin_data/current/year={year}/dt={date_folder}/basin_data_{year}.parquet"
 
+    def historical_data_exists(self, year: int) -> bool:
+        """Checks if the Parquet file for a historical year already exists."""
+        blob_name = self._get_historical_blob_name(year)
+        blob = self.bucket.blob(blob_name)
+        return blob.exists()
 
-
-    def save_dataframe_for_ingestion(self, df: pd.DataFrame, year: int, ingestion_date: date):
+    def get_latest_ingestion_date(self) -> Optional[date]:
         """
-        Saves a DataFrame as a Parquet file to GCS organized by ingestion date.
+        Finds the most recent ingestion date (data_carga_bronze) for the current year
+        by listing the partition "directories" in GCS.
+        """
+        prefix = f"basin_data/current/year={self.current_year}/dt="
+        # Usa 'delimiter' para tratar os "diretórios" como entidades únicas
+        blobs = self.client.list_blobs(self.bucket_name, prefix=prefix, delimiter="/")
         
-        Args:
-            df (pd.DataFrame): The DataFrame to save.
-            year (int): The year the data corresponds to.
-            ingestion_date (date): The date when the data was ingested.
+        prefixes = list(blobs.prefixes)
+        if not prefixes:
+            return None
+
+        try:
+            # Extrai as datas dos prefixes (que estão no formato '.../dt=YYYY-MM-DD/') e encontra a mais recente
+            dates = [datetime.strptime(p.split('dt=')[-1].strip('/'), '%Y-%m-%d').date() for p in prefixes]
+            return max(dates)
+        except (ValueError, IndexError):
+            return None
+
+    def save_dataframe(self, df: pd.DataFrame, year: int, ingestion_date: date):
         """
-        blob_name = self._get_blob_name_for_ingestion(ingestion_date, year)
+        Saves a DataFrame as a Parquet file in GCS, using the
+        correct path for historical or current year data.
+        """
+        is_current = (year == self.current_year)
+        
+        if is_current:
+            # Adiciona a coluna de data de carga para o ano corrente
+            df['data_carga_bronze'] = ingestion_date.strftime('%Y-%m-%d')
+            blob_name = self._get_current_blob_name(ingestion_date, year)
+        else:
+            blob_name = self._get_historical_blob_name(year)
+
         blob = self.bucket.blob(blob_name)
 
-        # Convert DataFrame to Parquet format in an in-memory buffer
         buffer = io.BytesIO()
         df.to_parquet(buffer, index=False)
-        buffer.seek(0) # Rewind the buffer to the beginning before uploading
+        buffer.seek(0)
 
-        # Upload the buffer content to the GCS blob
         blob.upload_from_file(buffer, content_type="application/octet-stream")
-        print(f"Data for year {year} ingested on {ingestion_date} saved to gs://{self.bucket_name}/{blob_name}")
-
-    def find_by_date_range(self, start_date: date, end_date: date) -> pd.DataFrame:
-        """
-        Fetches and combines data from multiple yearly Parquet files in GCS
-        that fall within a given date range.
-
-        Args:
-            start_date (date): The start of the date range.
-            end_date (date): The end of the date range.
-
-        Returns:
-            pd.DataFrame: A single DataFrame containing the filtered and sorted data.
-        """
-        all_dfs: List[pd.DataFrame] = []
-        for year in range(start_date.year, end_date.year + 1):
-            blob_name = self._get_blob_name_for_year(year)
-            blob = self.bucket.blob(blob_name)
-
-            if blob.exists():
-                # Download blob content into an in-memory buffer
-                buffer = io.BytesIO()
-                blob.download_to_file(buffer)
-                buffer.seek(0) # Rewind buffer to be read by pandas
-                
-                df = pd.read_parquet(buffer)
-                all_dfs.append(df)
-        
-        if not all_dfs:
-            return pd.DataFrame()
-
-        # Combine all yearly data into a single DataFrame
-        combined_df = pd.concat(all_dfs, ignore_index=True)
-        combined_df['ena_data'] = pd.to_datetime(combined_df['ena_data']).dt.date
-        
-        # Filter the combined data by the precise date range
-        mask = (combined_df['ena_data'] >= start_date) & (combined_df['ena_data'] <= end_date)
-        filtered_df = combined_df[mask]
-
-        # Sort the results to ensure stable and predictable pagination
-        sorted_df = filtered_df.sort_values(by=['ena_data', 'nom_bacia'], ascending=[True, True])
-        
-        return sorted_df
+        print(f"Dados para o ano {year} salvos em gs://{self.bucket_name}/{blob_name}")
